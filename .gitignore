@@ -1,0 +1,43 @@
+# Dependencias
+node_modules
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+
+# Base de datos
+/prisma/migrations
+
+# Build
+.next
+out
+dist
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea
+
+# Documentación de desarrollo interno
+CLAUDE.md
+AGENTS.md
+INICIO.md
+PASOS-FINALES.md
+ESTRUCTURA-FINAL.md
+*.md.bak
+
+# Archivos temporales
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# MinIO (archivos locales si los hubiera)
+minio_data

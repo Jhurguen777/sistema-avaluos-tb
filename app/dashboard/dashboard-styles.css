@@ -1,0 +1,352 @@
+/**
+ * Paleta de colores Alfa para el Dashboard
+ * Fondo Azul Alfa, colores individuales puros
+ */
+
+/* Sobrescribir variables CSS de Tailwind solo en el dashboard */
+.dashboard-wrapper {
+  /* Colores Alfa - Dashboard */
+  --color-primary: #233C7A;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #E0081D;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #FAB90E;
+  --color-accent-foreground: #212121;
+
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-warning: #FAB90E;
+  --color-warning-foreground: #212121;
+  --color-destructive: #E0081D;
+  --color-destructive-foreground: #ffffff;
+
+  /* Fondos y textos - Paleta oscura con Azul Alfa */
+  --color-background: #233C7A;
+  --color-foreground: #ffffff;
+
+  --color-card: #1e3566;
+  --color-card-foreground: #ffffff;
+
+  --color-popover: #1e3566;
+  --color-popover-foreground: #ffffff;
+
+  --color-muted: #2d4a8f;
+  --color-muted-foreground: #d1d5db;
+
+  --color-border: #3d5a99;
+  --color-input: #3d5a99;
+  --color-ring: #FAB90E;
+}
+
+/* Sobrescribir fondo del body cuando hay dashboard wrapper */
+body:has(.dashboard-wrapper) {
+  background: linear-gradient(135deg, #233C7A 0%, #1e3566 50%, #233C7A 100%) !important;
+  overflow: hidden !important;
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+/* Asegurar que el dashboard wrapper ocupe todo el viewport */
+.dashboard-wrapper {
+  height: 100vh !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow: hidden !important;
+}
+
+/* Asegurar contraste en el dashboard */
+.dashboard-wrapper {
+  color: #ffffff;
+  background-color: #233C7A;
+}
+
+.dashboard-wrapper .bg-card {
+  background-color: #1e3566 !important;
+}
+
+.dashboard-wrapper .bg-background {
+  background-color: #233C7A !important;
+}
+
+.dashboard-wrapper .text-card-foreground {
+  color: #ffffff !important;
+}
+
+.dashboard-wrapper .text-foreground {
+  color: #ffffff !important;
+}
+
+.dashboard-wrapper .text-muted-foreground {
+  color: #d1d5db !important;
+}
+
+.dashboard-wrapper .border-border {
+  border-color: #3d5a99 !important;
+}
+
+/* Botones con colores Alfa PUROS - sin degradados combinados */
+.dashboard-wrapper .bg-primary {
+  background-color: #233C7A !important;
+}
+
+.dashboard-wrapper .hover\:bg-primary\/90:hover {
+  background-color: #1e3566 !important;
+}
+
+.dashboard-wrapper .bg-secondary {
+  background-color: #E0081D !important;
+}
+
+.dashboard-wrapper .hover\:bg-secondary\/80:hover {
+  background-color: #c40018 !important;
+}
+
+.dashboard-wrapper .bg-destructive {
+  background-color: #E0081D !important;
+}
+
+.dashboard-wrapper .text-primary {
+  color: #233C7A !important;
+}
+
+.dashboard-wrapper .text-secondary {
+  color: #E0081D !important;
+}
+
+.dashboard-wrapper .text-accent {
+  color: #FAB90E !important;
+}
+
+.dashboard-wrapper .bg-accent {
+  background-color: #FAB90E !important;
+}
+
+/* Inputs */
+.dashboard-wrapper .border-input {
+  border-color: #3d5a99 !important;
+}
+
+.dashboard-wrapper .bg-muted {
+  background-color: #2d4a8f !important;
+}
+
+/* Gradientes - Colores PUROS sin combinar */
+.dashboard-wrapper .from-primary {
+  --tw-gradient-from: #233C7A !important;
+}
+
+.dashboard-wrapper .to-secondary {
+  --tw-gradient-to: #E0081D !important;
+}
+
+.dashboard-wrapper .via-secondary {
+  --tw-gradient-via: #E0081D !important;
+}
+
+.dashboard-wrapper .to-accent {
+  --tw-gradient-to: #FAB90E !important;
+}
+
+.dashboard-wrapper .from-accent {
+  --tw-gradient-from: #FAB90E !important;
+}
+
+/* Scrollbar personalizado para dashboard */
+.dashboard-wrapper ::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dashboard-wrapper ::-webkit-scrollbar-track {
+  background: #1e3566;
+}
+
+.dashboard-wrapper ::-webkit-scrollbar-thumb {
+  background: #FAB90E;
+  border-radius: 5px;
+}
+
+.dashboard-wrapper ::-webkit-scrollbar-thumb:hover {
+  background: #e5a800;
+}
+
+/* Estilos específicos para selects nativos en dashboard */
+.dashboard-wrapper select {
+  background-color: #1e3566 !important;
+  color: #ffffff !important;
+  border-color: #3d5a99 !important;
+}
+
+.dashboard-wrapper select option {
+  background-color: #1e3566 !important;
+  color: #ffffff !important;
+}
+
+/* Fix para Radix UI SelectValue - sobrescribir la regla de span global */
+.dashboard-wrapper [data-radix-select-trigger] span {
+  color: #ffffff !important;
+}
+
+.dashboard-wrapper [data-radix-select-trigger] span[data-state] {
+  color: #ffffff !important;
+}
+
+/* Fix adicional: asegurar que el SelectValue sea visible */
+.dashboard-wrapper [data-radix-select-trigger] > span {
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+  color: #ffffff !important;
+  position: static !important;
+  overflow: visible !important;
+}
+
+/* Asegurar que el texto dentro del SelectValue sea visible */
+.dashboard-wrapper [data-radix-select-trigger] span[data-radix-collection-item] {
+  color: #ffffff !important;
+}
+
+/* Estilos específicos para inputs nativos en dashboard */
+.dashboard-wrapper input[type="text"],
+.dashboard-wrapper input[type="email"],
+.dashboard-wrapper input[type="password"] {
+  background-color: #1e3566 !important;
+  color: #ffffff !important;
+  border-color: #3d5a99 !important;
+}
+
+.dashboard-wrapper input::placeholder {
+  color: #d1d5db !important;
+}
+
+.dashboard-wrapper input:disabled {
+  background-color: #2d4a8f !important;
+  color: #d1d5db !important;
+}
+
+/* Estilos para botones nativos en dashboard */
+.dashboard-wrapper button:not([class*="bg-"]):not([class*="text-"]) {
+  color: #ffffff !important;
+}
+
+/* Asegurar que los enlaces tengan el color correcto */
+.dashboard-wrapper a {
+  color: #FAB90E !important;
+}
+
+.dashboard-wrapper a:hover {
+  color: #e5a800 !important;
+}
+
+/* Tablas */
+.dashboard-wrapper table {
+  background-color: #1e3566 !important;
+}
+
+.dashboard-wrapper thead {
+  background-color: #2d4a8f !important;
+}
+
+.dashboard-wrapper tbody tr {
+  border-color: #3d5a99 !important;
+}
+
+.dashboard-wrapper tbody tr:hover {
+  background-color: #2d4a8f !important;
+}
+
+/* Textos y etiquetas */
+.dashboard-wrapper label {
+  color: #ffffff !important;
+}
+
+.dashboard-wrapper h1, .dashboard-wrapper h2, .dashboard-wrapper h3, .dashboard-wrapper h4 {
+  color: #ffffff !important;
+}
+
+.dashboard-wrapper p, .dashboard-wrapper span {
+  color: #d1d5db !important;
+}
+
+.dashboard-wrapper .font-bold, .dashboard-wrapper .font-semibold {
+  color: #ffffff !important;
+}
+
+/* ==============================
+   Fix para contenido ancho (tablas, etc.)
+   ============================== */
+
+/* Contenedor principal del contenido */
+.dashboard-wrapper > main {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Tablas con scroll horizontal interno */
+.dashboard-wrapper table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.dashboard-wrapper thead,
+.dashboard-wrapper tbody,
+.dashboard-wrapper tr {
+  display: table;
+  width: 100%;
+}
+
+/* Contenedores con contenido ancho */
+.dashboard-wrapper .overflow-x-auto {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevenir estiramiento horizontal del contenido */
+.dashboard-wrapper * {
+  max-width: 100%;
+}
+
+/* Excepciones: elementos que pueden ser anchos */
+.dashboard-wrapper img:not(.max-w-none),
+.dashboard-wrapper video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Contenedores flex y grid no deben estirarse más allá del viewport */
+.dashboard-wrapper .flex,
+.dashboard-wrapper .grid {
+  min-width: 0;
+}
+
+/* ==============================
+   Fix para el elemento main
+   ============================== */
+
+.dashboard-wrapper > main {
+  height: 100% !important;
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Scrollbar personalizado para el main */
+.dashboard-wrapper > main::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dashboard-wrapper > main::-webkit-scrollbar-track {
+  background: #1e3566;
+}
+
+.dashboard-wrapper > main::-webkit-scrollbar-thumb {
+  background: #FAB90E;
+  border-radius: 4px;
+}
+
+.dashboard-wrapper > main::-webkit-scrollbar-thumb:hover {
+  background: #e5a800;
+}

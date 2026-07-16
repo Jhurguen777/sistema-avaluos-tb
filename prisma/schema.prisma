@@ -1,0 +1,505 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// SEGURIDAD
+// ============================================
+
+enum Role {
+  ADMIN
+  ARQUITECTO
+  INGENIERO_CIVIL
+  VALUADOR
+}
+
+model User {
+  id                String       @id @default(cuid())
+  email             String       @unique
+  name              String
+  password          String
+  role              Role         @default(VALUADOR)
+  isActive          Boolean      @default(true)
+  emailVerified     DateTime?
+  image             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  lastLoginAt       DateTime?
+
+  // Relaciones
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  createdAvaluos    Avaluo[]     @relation("CreatedBy")
+  approvedAvaluos   Avaluo[]     @relation("ApprovedBy")
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  expires      DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@map("login_attempts")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  action        String
+  tableName     String?
+  recordId      String?
+  oldValue      Json?
+  newValue      Json?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// ============================================
+// INMUEBLES
+// ============================================
+
+enum ProductCategoryEnum {
+  CASA
+  DEPARTAMENTO
+  PENTHOUSE
+  TERRENO
+  LOCAL_COMERCIAL
+  OFICINA
+  GALPON
+  QUINTA
+  MONOAMBIENTE
+  DUPLEX
+  CONDOMINIO
+  EDIFICIO
+  COCHERA
+  HABITACION
+  OTROS
+}
+
+enum OperationType {
+  VENTA
+  ALQUILER
+  ANTICRETICO
+}
+
+model ProductCategory {
+  id          String   @id @default(cuid())
+  name        ProductCategoryEnum
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  products    Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                    String            @id @default(cuid())
+  codigoInmueble        String            @unique
+  nombre                String
+  categoryId            String
+  operacion             OperationType
+  precioUsd             Float?
+  precioBob             Float?
+  superficieUtil        Float?
+  superficieConstruida  Float?
+  ambientes             Int?
+  habitaciones          Int?
+  banos                 Int?
+  cocheras              Int?
+  anoConstruccion       Int?
+  descripcion           String?           @db.Text
+  direccion             String?
+  lat                   Float?
+  lng                   Float?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  category    ProductCategory @relation(fields: [categoryId], references: [id])
+  location    ProductLocation?
+  images      ProductImage[]
+  avaluos     Avaluo[]
+
+  @@map("products")
+}
+
+model ProductLocation {
+  id            String   @id @default(cuid())
+  productId     String   @unique
+  pais          String   @default("Bolivia")
+  departamento  String?
+  provincia     String?
+  municipio     String?
+  zona          String?
+  callePrincipal String?
+  numero        String?
+  entreCalles   String?
+  lat           Float
+  lng           Float
+  altitude      Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_locations")
+}
+
+model ProductImage {
+  id            String   @id @default(cuid())
+  productId     String
+  fileName      String
+  originalName  String
+  mimeType      String
+  size          Int
+  url           String
+  orden         Int      @default(0)
+  descripcion   String?
+  isPrincipal   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// ============================================
+// AVALUOS
+// ============================================
+
+enum AvaluoEstado {
+  BORRADOR
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+}
+
+enum AvaluoTipo {
+  COMERCIAL
+  ALQUILER
+  VENTA_RAPIDA
+  CAPITAL_COMERCIAL
+}
+
+model Avaluo {
+  id                String        @id @default(cuid())
+  productId         String
+  codigo            String        @unique
+  tipo              AvaluoTipo
+  estado            AvaluoEstado   @default(BORRADOR)
+  fechaElaboracion  DateTime      @default(now())
+  fechaAprobacion   DateTime?
+  solicitante       String?
+  propietario       String?
+  observaciones     String?       @db.Text
+
+  // Relaciones con usuarios
+  createdBy         String?
+  approvedBy        String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  product           Product       @relation(fields: [productId], references: [id])
+  terreno           Terreno?
+  construcciones    Construccion[]
+  factoresHomologacion FactorHomologacion?
+  resultados        ResultadoAvaluo?
+  entorno           AvaluoEntorno?
+  mapas             AvaluoMapa[]
+  comparablesVenta  ComparableVenta[]
+  comparablesAlquiler ComparableAlquiler[]
+  documentos        Documento[]
+
+  creator           User?         @relation("CreatedBy", fields: [createdBy], references: [id])
+  approver          User?         @relation("ApprovedBy", fields: [approvedBy], references: [id])
+
+  @@map("avaluos")
+}
+
+// ============================================
+// TERRENOS
+// ============================================
+
+enum TipoVia {
+  AVENIDA
+  CALLE
+  PASAJE
+  CARRETERA
+  CAMINO
+  SIN_VIA
+}
+
+model Terreno {
+  id                  String      @id @default(cuid())
+  avaluoId            String      @unique
+  superficieM2        Float
+  valorUnitario       Float
+  valorTotal          Float
+  morfologia          String?
+  formaLote           String?
+  frente              Float?
+  fondo               Float?
+  esEsquina           Boolean     @default(false)
+  tipoVia             TipoVia
+  descripcion         String?     @db.Text
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  avaluo              Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("terrenos")
+}
+
+// ============================================
+// CONSTRUCCIONES
+// ============================================
+
+enum CategoriaConstructiva {
+  LUJO
+  SEMILUJO
+  MEDIA
+  ECONOMICA
+  POPULAR
+}
+
+enum EstadoConservacion {
+  EXCELENTE
+  MUY_BUENO
+  BUENO
+  REGULAR
+  MALO
+}
+
+model Construccion {
+  id                      String              @id @default(cuid())
+  avaluoId                String
+  tipo                    String
+  categoria              CategoriaConstructiva
+  estado                  EstadoConservacion
+  anoConstruccion         Int
+  vidaUtil                Int                 @default(50)
+  superficieM2            Float
+  valorUnitario           Float
+  valorReposicion         Float
+  depreciacionAnual       Float
+  depreciacionTotal       Float
+  valorNeto               Float
+  descripcion             String?             @db.Text
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  avaluo                  Avaluo              @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("construcciones")
+}
+
+// ============================================
+// HOMOLOGACIÓN Y RESULTADOS
+// ============================================
+
+model FactorHomologacion {
+  id                      String      @id @default(cuid())
+  avaluoId                String      @unique
+  factorUbicacion         Float       @default(1.0)
+  factorVia               Float       @default(1.0)
+  factorFrente            Float       @default(1.0)
+  factorEsquina           Float       @default(1.0)
+  factorMorfologico       Float       @default(1.0)
+  factorServicios         Float       @default(1.0)
+  factorEquipamiento      Float       @default(1.0)
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  avaluo                  Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("factores_homologacion")
+}
+
+model ResultadoAvaluo {
+  id                      String      @id @default(cuid())
+  avaluoId                String      @unique
+  valorTerreno            Float
+  valorReposicion         Float
+  depreciacion            Float
+  valorConstruccion       Float
+  valorComercial         Float
+  valorVentaRapida        Float?
+  valorAlquiler           Float?
+  valorCapitalComercial   Float?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  avaluo                  Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("resultados_avaluo")
+}
+
+// ============================================
+// ENTORNO Y MAPAS
+// ============================================
+
+enum TipoEquipamiento {
+  HOSPITAL
+  CLINICA
+  UNIVERSIDAD
+  COLEGIO
+  MERCADO
+  PARQUE
+  BANCO
+  IGLESIA
+  TRANSPORTE
+  CENTRO_COMERCIAL
+  ENTIDAD_PUBLICA
+}
+
+model AvaluoEntorno {
+  id            String      @id @default(cuid())
+  avaluoId      String      @unique
+  radio         Int         @default(500) // en metros
+  createdAt     DateTime    @default(now())
+
+  avaluo        Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+  equipamientos Equipamiento[]
+
+  @@map("avaluo_entorno")
+}
+
+model Equipamiento {
+  id              String           @id @default(cuid())
+  entornoId       String
+  tipo            TipoEquipamiento
+  nombre          String
+  direccion       String?
+  distancia       Int              // en metros
+  lat             Float
+  lng             Float
+  createdAt       DateTime         @default(now())
+
+  entorno         AvaluoEntorno    @relation(fields: [entornoId], references: [id], onDelete: Cascade)
+
+  @@map("equipamientos")
+}
+
+model AvaluoMapa {
+  id              String      @id @default(cuid())
+  avaluoId        String
+  tipo            String      // ubicacion, radar
+  url             String
+  capturaUrl      String?
+  radio           Int?
+  createdAt       DateTime    @default(now())
+
+  avaluo          Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("avaluo_mapas")
+}
+
+// ============================================
+// COMPARABLES DE MERCADO
+// ============================================
+
+model ComparableVenta {
+  id                String      @id @default(cuid())
+  avaluoId          String
+  direccion         String
+  precioOferta      Float
+  precioCierre      Float?
+  precioM2          Float
+  superficie        Float
+  anoConstruccion   Int?
+  estado            EstadoConservacion?
+  lat               Float
+  lng               Float
+  distancia         Int?        // en metros
+  observaciones     String?     @db.Text
+  createdAt         DateTime    @default(now())
+
+  avaluo            Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("comparables_venta")
+}
+
+model ComparableAlquiler {
+  id                String      @id @default(cuid())
+  avaluoId          String
+  direccion         String
+  precioOferta      Float
+  precioCierre      Float?
+  precioM2          Float
+  superficie        Float
+  anoConstruccion   Int?
+  estado            EstadoConservacion?
+  lat               Float
+  lng               Float
+  distancia         Int?        // en metros
+  observaciones     String?     @db.Text
+  createdAt         DateTime    @default(now())
+
+  avaluo            Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("comparables_alquiler")
+}
+
+// ============================================
+// DOCUMENTOS
+// ============================================
+
+enum TipoDocumento {
+  FOLIO_REAL
+  CATASTRO
+  IMPUESTOS
+  PLANO
+  FOTOGRAFIA
+  AVALUO_PDF
+  OTRO
+}
+
+model Documento {
+  id              String          @id @default(cuid())
+  avaluoId        String
+  tipo            TipoDocumento
+  fileName        String
+  originalName    String
+  mimeType        String
+  size            Int
+  url             String
+  descripcion     String?         @db.Text
+  createdAt       DateTime        @default(now())
+
+  avaluo          Avaluo          @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
+
+  @@map("documentos")
+}
