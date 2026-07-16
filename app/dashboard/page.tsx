@@ -94,7 +94,7 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="p-8 space-y-8 animate-fadeIn">
+    <div className="p-8 pb-16 space-y-8 animate-fadeIn">
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">

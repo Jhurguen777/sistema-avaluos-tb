@@ -211,62 +211,10 @@ export default async function HomePage() {
         <FiltrosInmuebles />
       </section>
 
-      {/* Módulos de Acceso Rápido */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-        <div className="text-center mb-8 sm:mb-12">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">
-            Acceso Rápido a Módulos
-          </h2>
-          <p className="text-slate-400">
-            Comienza a trabajar con las herramientas principales del sistema
-          </p>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto">
-          {modules.map((module, index) => {
-            const Icon = module.icon
-            return (
-              <Link
-                key={index}
-                href={module.href}
-                className="group"
-              >
-                <Card className="relative overflow-hidden border-2 border-slate-800 hover:border-slate-700 transition-all duration-300 bg-slate-900/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/20 h-full transform hover:-translate-y-2">
-                  {/* Efecto de fondo con gradiente */}
-                  <div className={`absolute top-0 right-0 w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-br ${module.color} opacity-10 rounded-full filter blur-3xl group-hover:opacity-20 transition-opacity`} />
 
-                  {/* Contenido */}
-                  <div className="relative p-6 sm:p-8 h-full flex flex-col">
-                    {/* Icono */}
-                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl ${module.bgColor} ${module.textColor} flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
-                    </div>
-
-                    {/* Título */}
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3">
-                      {module.title}
-                    </h3>
-
-                    {/* Descripción */}
-                    <p className="text-sm sm:text-base text-slate-400 mb-4 sm:mb-6 flex-1">
-                      {module.description}
-                    </p>
-
-                    {/* Botón */}
-                    <div className="flex items-center gap-2 text-white group-hover:gap-3 transition-all duration-300">
-                      <span className="text-sm sm:text-base font-medium">Acceder</span>
-                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Spacer para empujar el footer */}
-      <div className="mt-auto" />
+      {/* Spacer para empujar el footer con más espacio */}
+      <div className="h-16 mt-8" />
 
       {/* Footer Completo */}
       <footer className="bg-slate-950 border-t border-slate-800/50">

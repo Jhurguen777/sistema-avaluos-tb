@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/use-toast"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select"
 
 interface CrearUsuarioModalSimpleProps {
   open: boolean
@@ -23,7 +29,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState("")
+  const [role, setRole] = useState<string>("all") // Valor inicial: "all" (mismo patrón que filtros)
 
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -59,7 +65,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
     }
 
     // Role validation
-    if (!role) {
+    if (!role || role === "all") {
       newErrors.role = "Debe seleccionar un rol"
     }
 
@@ -99,7 +105,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
         setEmail("")
         setName("")
         setPassword("")
-        setRole("")
+        setRole("all")
         setErrors({})
 
         setTimeout(() => {
@@ -124,7 +130,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
         setEmail("")
         setName("")
         setPassword("")
-        setRole("")
+        setRole("all")
         setErrors({})
         setTempPassword(null)
       }, 300)
@@ -134,15 +140,15 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 lg:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
         onClick={handleClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-background border-2 border-border/50 rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto m-4">
+      <div className="relative w-full max-w-md md:max-w-lg bg-[#1e293b] rounded-2xl p-6 md:p-8 border border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={handleClose}
@@ -168,7 +174,9 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             {/* Email */}
             <div className="space-y-1.5 sm:space-y-2">
-              <label htmlFor="email" className="text-xs sm:text-sm font-medium block">Email</label>
+              <label htmlFor="email" className="text-xs sm:text-sm font-medium block">
+                Email <span className="text-red-500">*</span>
+              </label>
               <Input
                 id="email"
                 type="email"
@@ -187,7 +195,9 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
 
             {/* Nombre */}
             <div className="space-y-1.5 sm:space-y-2">
-              <label htmlFor="name" className="text-xs sm:text-sm font-medium block">Nombre Completo</label>
+              <label htmlFor="name" className="text-xs sm:text-sm font-medium block">
+                Nombre Completo <span className="text-red-500">*</span>
+              </label>
               <Input
                 id="name"
                 type="text"
@@ -207,11 +217,11 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
             {/* Password */}
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
-                Password (opcional)
+                Password <span className="text-red-500">*</span>
               </label>
               <PasswordInput
                 id="password"
-                placeholder="Dejar vacío para generar automáticamente"
+                placeholder="Ingresa una contraseña segura"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
@@ -222,35 +232,47 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
               {errors.password && (
                 <p className="text-xs text-destructive">{errors.password}</p>
               )}
-              <p className="text-xs text-muted-foreground">
-                Mínimo 8 caracteres, mayúscula, minúscula y número
-              </p>
+              <div className="mt-2 p-3 bg-slate-900/60 rounded-lg border border-slate-800 text-xs text-slate-400 space-y-1">
+                <p className="font-medium text-slate-300">La contraseña debe contener:</p>
+                <ul className="list-disc list-inside space-y-0.5 pl-1">
+                  <li>Mínimo 8 caracteres</li>
+                  <li>Al menos una letra mayúscula</li>
+                  <li>Al menos una letra minúscula</li>
+                  <li>Al menos un número</li>
+                </ul>
+              </div>
             </div>
 
             {/* Rol */}
             <div className="space-y-2">
-              <label htmlFor="role" className="text-sm font-medium">Rol</label>
-              <select
-                id="role"
+              <label htmlFor="role" className="text-sm font-medium">
+                Rol <span className="text-red-500">*</span>
+              </label>
+              <Select
                 value={role}
-                onChange={(e) => {
-                  setRole(e.target.value)
-                  if (errors.role) setErrors({...errors, role: ""})
+                onValueChange={(value) => {
+                  console.log("Select onChange - value:", value, "role actual:", role)
+                  // Solo actualizar si el valor no es vacío
+                  if (value && value.trim() !== "") {
+                    setRole(value)
+                    if (errors.role) setErrors({...errors, role: ""})
+                  }
                 }}
-                className={`
-                  w-full h-10 px-3 border-2 rounded-md appearance-none cursor-pointer
-                  transition-all duration-200 text-sm bg-background
-                  focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
-                  ${errors.role ? 'border-destructive' : 'border-border/50'}
-                `}
               >
-                <option value="">Selecciona un rol</option>
-                {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full h-11 border-2 border-border/50 rounded-md bg-card text-white focus:border-[#FAB90E] focus:outline-none focus:ring-2 focus:ring-[#FAB90E] relative">
+                  <span className="text-white text-sm">
+                    {role === "all" ? "(Elige un rol)" : (ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role)}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="w-[var(--radix-select-trigger-width)] bg-card border-border/50">
+                  <SelectItem value="all">(Elige un rol)</SelectItem>
+                  {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.role && (
                 <p className="text-xs text-destructive">{errors.role}</p>
               )}

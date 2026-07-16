@@ -7,7 +7,7 @@ import { UsuariosTable } from "@/components/usuarios/usuarios-table"
 import { CrearUsuarioModalSimple } from "@/components/usuarios/crear-usuario-modal-simple"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Users, UserCheck, UserX } from "lucide-react"
+import { Plus } from "lucide-react"
 
 export default function UsuariosPage() {
   const router = useRouter()
@@ -59,9 +59,6 @@ export default function UsuariosPage() {
     )
   }
 
-  const activos = users.filter(u => u.isActive).length
-  const inactivos = users.filter(u => !u.isActive).length
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
       {/* Header */}
@@ -81,60 +78,6 @@ export default function UsuariosPage() {
           <Plus className="mr-2 h-5 w-5" />
           Nuevo Usuario
         </Button>
-      </div>
-
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        <Card className="border-2 border-border/50 hover:border-[#FAB90E] transition-all duration-300 group hover:shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#233C7A] opacity-10 rounded-full filter blur-3xl group-hover:opacity-20 transition-opacity" />
-          <CardHeader className="relative pb-3">
-            <div className="flex items-center justify-between">
-              <div className="p-3 rounded-xl bg-[#233C7A]">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="space-y-1">
-              <p className="text-2xl sm:text-3xl font-bold">{total}</p>
-              <p className="text-sm text-muted-foreground">Total Usuarios</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-border/50 hover:border-[#FAB90E] transition-all duration-300 group hover:shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-green-600 opacity-10 rounded-full filter blur-3xl group-hover:opacity-20 transition-opacity" />
-          <CardHeader className="relative pb-3">
-            <div className="flex items-center justify-between">
-              <div className="p-3 rounded-xl bg-green-600">
-                <UserCheck className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="space-y-1">
-              <p className="text-2xl sm:text-3xl font-bold">{activos}</p>
-              <p className="text-sm text-muted-foreground">Usuarios Activos</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-border/50 hover:border-[#FAB90E] transition-all duration-300 group hover:shadow-2xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#E0081D] opacity-10 rounded-full filter blur-3xl group-hover:opacity-20 transition-opacity" />
-          <CardHeader className="relative pb-3">
-            <div className="flex items-center justify-between">
-              <div className="p-3 rounded-xl bg-[#E0081D]">
-                <UserX className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="space-y-1">
-              <p className="text-2xl sm:text-3xl font-bold">{inactivos}</p>
-              <p className="text-sm text-muted-foreground">Usuarios Inactivos</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Tabla de usuarios */}
