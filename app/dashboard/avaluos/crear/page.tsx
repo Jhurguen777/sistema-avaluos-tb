@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,11 +8,16 @@ import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select"
 import {
   ChevronRight,
   ChevronLeft,
@@ -22,505 +27,807 @@ import {
   Warehouse,
   Building2,
   MapPin,
+  Loader2,
   Check,
-  Plus,
-  Trash2,
-  Calculator
+  FileText,
+  Ruler,
+  Sparkles,
+  Radar as RadarIcon,
+  Calculator,
 } from "lucide-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast"
+import { crearAvaluoAction } from "@/modules/avaluos/actions"
+import { valorSugerido } from "@/config/valores-reposicion"
+import { MapaUbicacion } from "@/components/avaluos/mapa-ubicacion"
+import { TablaReposicion } from "@/components/avaluos/tabla-reposicion"
+import { DocumentosWizard, type DocumentoWizard } from "@/components/avaluos/documentos-wizard"
+import { ComparablesMapa } from "@/components/avaluos/comparables-mapa"
+import type { ComparableCercanoDTO, MetodoCalculoTerreno } from "@/modules/avaluos/types/avaluo.types"
+import type { CategoriaConstructiva } from "@/constants/categorias-constructivas"
+import type { EstadoConservacion } from "@/constants/estados-conservacion"
 
 type PropertyCategory = "CASA" | "DEPARTAMENTO" | "TERRENO" | "LOCAL_COMERCIAL" | "OFICINA" | "GALPON" | "OTROS"
 type OperationType = "VENTA" | "ALQUILER" | "ANTICRETICO"
 type AvaluoTipo = "COMERCIAL" | "ALQUILER" | "VENTA_RAPIDA" | "CAPITAL_COMERCIAL"
 
-const categories: { value: PropertyCategory; label: string; icon: any; description: string }[] = [
+const categories: { value: PropertyCategory; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
   { value: "CASA", label: "Casa", icon: Home, description: "Vivienda unifamiliar con terreno" },
   { value: "DEPARTAMENTO", label: "Departamento", icon: Building2, description: "Unidad en edificio multifamiliar" },
   { value: "TERRENO", label: "Terreno", icon: MapPin, description: "Lote sin construcción" },
   { value: "LOCAL_COMERCIAL", label: "Local Comercial", icon: Store, description: "Espacio para actividades comerciales" },
   { value: "OFICINA", label: "Oficina", icon: Building, description: "Espacio para actividades administrativas" },
-  { value: "GALPON", label: "Galpón", icon: Warehouse, description: "Espacio industrial o de almacenamiento" }
+  { value: "GALPON", label: "Galpón", icon: Warehouse, description: "Espacio industrial o de almacenamiento" },
 ]
 
 const operations: { value: OperationType; label: string; description: string; color: string }[] = [
   { value: "VENTA", label: "Venta", description: "Avalúo para compraventa de propiedad", color: "from-blue-500 to-cyan-500" },
   { value: "ALQUILER", label: "Alquiler", description: "Avalúo para contrato de arrendamiento", color: "from-red-500 to-pink-500" },
-  { value: "ANTICRETICO", label: "Anticrético", description: "Avalúo para contrato de anticrético", color: "from-yellow-500 to-orange-500" }
+  { value: "ANTICRETICO", label: "Anticrético", description: "Avalúo para contrato de anticrético", color: "from-yellow-500 to-orange-500" },
+]
+
+const tiposAvaluo: { value: AvaluoTipo; label: string; descuento: string }[] = [
+  { value: "COMERCIAL", label: "Comercial", descuento: "Sin descuento (valor de mercado)" },
+  { value: "VENTA_RAPIDA", label: "Venta Rápida", descuento: "−15% sobre el valor comercial" },
+  { value: "CAPITAL_COMERCIAL", label: "Capital Comercial", descuento: "−10% sobre el valor comercial" },
+  { value: "ALQUILER", label: "Alquiler", descuento: "0.8% mensual del valor comercial" },
+]
+
+const FORMAS_LOTE = [
+  { value: "REGULAR", label: "Regular" },
+  { value: "IRREGULAR", label: "Irregular" },
+  { value: "RECTANGULAR", label: "Rectangular" },
+  { value: "CUADRADO", label: "Cuadrado" },
+]
+
+const TIPOS_VIA = [
+  { value: "CALLE", label: "Calle" },
+  { value: "AVENIDA", label: "Avenida" },
+  { value: "PASAJE", label: "Pasaje" },
+  { value: "CARRETERA", label: "Carretera" },
+  { value: "CAMINO", label: "Camino" },
+]
+
+const CATEGORIAS_CONSTR = [
+  { value: "LUJO", label: "Lujo" },
+  { value: "PRIMERA", label: "Primera" },
+  { value: "ESTANDAR", label: "Estándar" },
+  { value: "ECONOMICA", label: "Económica" },
+]
+
+const ESTADOS_CONSERV = [
+  { value: "EXCELENTE", label: "Excelente" },
+  { value: "BUENO", label: "Bueno" },
+  { value: "REGULAR", label: "Regular" },
+  { value: "MALO", label: "Malo" },
+  { value: "DEMOLICION", label: "Demolición" },
+]
+
+const FACTORES_LABELS: { key: string; label: string; descripcion: string }[] = [
+  { key: "factorUbicacion", label: "Fub - Ubicación", descripcion: "Zona / Barrio" },
+  { key: "factorVia", label: "Fvia - Vía", descripcion: "Tipo de calle / accesibilidad" },
+  { key: "factorFrente", label: "Fff - Frente-Fondo", descripcion: "Relación frente-fondo del lote" },
+  { key: "factorEsquina", label: "Fi - Inclinación", descripcion: "Topografía / pendiente" },
+  { key: "factorMorfologico", label: "Fm - Morfología", descripcion: "Forma del lote" },
+  { key: "factorServicios", label: "Fs - Servicios", descripcion: "Servicios básicos disponibles" },
 ]
 
 const steps = [
-  { id: 1, name: "Categoría", icon: "1" },
-  { id: 2, name: "Operación", icon: "2" },
-  { id: 3, name: "Ubicación", icon: "3" },
-  { id: 4, name: "Terreno", icon: "4" },
-  { id: 5, name: "Construcción", icon: "5" },
-  { id: 6, name: "Depreciación", icon: "6" },
-  { id: 7, name: "Comparables", icon: "7" },
-  { id: 8, name: "Factores", icon: "8" },
-  { id: 9, name: "Radar", icon: "9" },
-  { id: 10, name: "Documentos", icon: "10" },
-  { id: 11, name: "Finalizar", icon: "11" }
+  { id: 1, name: "Categoría" },
+  { id: 2, name: "Operación" },
+  { id: 3, name: "Ubicación" },
+  { id: 4, name: "Terreno" },
+  { id: 5, name: "Comodidades" },
+  { id: 6, name: "Documentos" },
+  { id: 7, name: "Construcción" },
+  { id: 8, name: "Factores" },
+  { id: 9, name: "Comparables" },
+  { id: 10, name: "Radar" },
+  { id: 11, name: "Finalizar" },
 ]
 
-interface Comparable {
+interface ConstrForm {
   id: string
-  codigo: string
-  direccion: string
-  precio: number
-  superficie: number
-  precioM2: number
+  categoria: string
+  estado: string
+  anoConstruccion: string
+  superficieM2: string
+  tipo: string
 }
 
 export default function CrearAvaluoPage() {
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedCategory, setSelectedCategory] = useState<PropertyCategory | null>(null)
   const [selectedOperation, setSelectedOperation] = useState<OperationType | null>(null)
+  const [selectedTipoAvaluo, setSelectedTipoAvaluo] = useState<AvaluoTipo | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [createdCodigo, setCreatedCodigo] = useState<string | null>(null)
+  const [createdId, setCreatedId] = useState<string | null>(null)
 
-  // Form data
-  const [formData, setFormData] = useState({
-    // Paso 3: Ubicación
+  // PASO 3 - Ubicación
+  const [ubicacion, setUbicacion] = useState({
     direccion: "",
     zona: "",
-    lat: "",
-    lng: "",
+    lat: null as number | null,
+    lng: null as number | null,
+  })
 
-    // Paso 4: Terreno
-    superficieTerreno: "",
+  // PASO 4 - Terreno
+  const [terreno, setTerreno] = useState({
+    superficieUtil: "",          // m² totales del lote
+    superficieConstruida: "",    // m² edificados
     frente: "",
     fondo: "",
     formaLote: "",
     esquina: false,
-    tipoVia: "",
-    valorUnitario: "",
+    tipoVia: "CALLE",
+    valorUnitarioManual: "",     // solo si no hay comparables
+  })
 
-    // Paso 5: Construcción
-    anioConstruccion: "",
-    estadoConservacion: "",
-    categoriaConstruccion: "",
-    niveles: "",
-    valorReposicion: "",
+  // PASO 5 - Amenities + servicios
+  const [amenities, setAmenities] = useState({
+    habitaciones: "",
+    banos: "",
+    cocheras: "",
+    ambientes: "",
+  })
+  const [servicios, setServicios] = useState({
+    luz: false,
+    agua: false,
+    alcantarillado: false,
+    gas: false,
+    otros: "",
+  })
 
-    // Paso 6: Depreciación
-    anosTranscurridos: "",
-    vidaUtil: "50",
-    depreciacionAnual: "",
-    valorNeto: "",
+  // PASO 6 - Documentos
+  const [documentos, setDocumentos] = useState<DocumentoWizard[]>([])
 
-    // Paso 7: Comparables
-    comparables: [] as Comparable[],
+  // PASO 7 - Construcción (única, simplificada; vacía = terreno puro)
+  const [tieneConstruccion, setTieneConstruccion] = useState(true)
+  const [construccion, setConstruccion] = useState<ConstrForm>({
+    id: "1",
+    categoria: "",
+    estado: "",
+    anoConstruccion: "",
+    superficieM2: "",
+    tipo: "Principal",
+  })
 
-    // Paso 8: Factores de Homologación
-    factorUbicacion: "1.00",
-    factorVia: "1.00",
-    factorFrente: "1.00",
-    factorEsquina: "1.00",
-    factorMorfologico: "1.00",
-    factorServicios: "1.00",
-    factorEquipamiento: "1.00",
+  // PASO 8 - Factores del sujeto
+  const [factores, setFactores] = useState<Record<string, string>>({
+    factorUbicacion: "1.0",
+    factorVia: "1.0",
+    factorFrente: "1.0",
+    factorEsquina: "1.0",
+    factorMorfologico: "1.0",
+    factorServicios: "1.0",
+  })
 
-    // Paso 9: Radar
-    radioRadar: "500",
+  // PASO 9 - Comparables
+  const [comparablesSel, setComparablesSel] = useState<ComparableCercanoDTO[]>([])
+  const [metodoCalculo, setMetodoCalculo] = useState<MetodoCalculoTerreno>("SIMPLE")
 
-    // Paso 10: Documentos
-    folioReal: false,
-    catastro: false,
-    impuestos: false,
-    plano: false,
-    fotografias: false,
-
-    // General
+  // DATOS GENERALES (paso 6 también incluye solicitante/propietario)
+  const [datosGenerales, setDatosGenerales] = useState({
     solicitante: "",
     propietario: "",
-    observaciones: ""
+    observaciones: "",
   })
 
-  // Calcular depreciación automáticamente
-  const calculateDepreciacion = () => {
-    if (formData.anioConstruccion && formData.valorReposicion) {
-      const anioConstruccion = parseInt(formData.anioConstruccion)
-      const valorReposicion = parseFloat(formData.valorReposicion)
-      const anioActual = new Date().getFullYear()
-      const anosTranscurridos = anioActual - anioConstruccion
-      const vidaUtil = 50
-      const depreciacionAnual = 1 / vidaUtil
-      const depreciacionTotal = depreciacionAnual * anosTranscurridos
-      const valorNeto = valorReposicion * (1 - depreciacionTotal)
+  // ───────────── Derived ─────────────
 
-      setFormData({
-        ...formData,
-        anosTranscurridos: anosTranscurridos.toString(),
-        depreciacionAnual: (depreciacionAnual * 100).toFixed(2) + "%",
-        valorNeto: valorNeto.toFixed(2)
-      })
+  const factorTotal = useMemo(() => {
+    return (
+      (parseFloat(factores.factorUbicacion) || 1) *
+      (parseFloat(factores.factorVia) || 1) *
+      (parseFloat(factores.factorFrente) || 1) *
+      (parseFloat(factores.factorEsquina) || 1) *
+      (parseFloat(factores.factorMorfologico) || 1) *
+      (parseFloat(factores.factorServicios) || 1)
+    )
+  }, [factores])
+
+  const valorUnitarioConstruccion = useMemo(() => {
+    if (!construccion.categoria || !construccion.estado) return null
+    if (construccion.estado === "DEMOLICION") return 0
+    return valorSugerido(construccion.categoria as CategoriaConstructiva, construccion.estado as EstadoConservacion)
+  }, [construccion.categoria, construccion.estado])
+
+  const valorConstruccion = useMemo(() => {
+    if (!tieneConstruccion) return 0
+    if (valorUnitarioConstruccion == null) return 0
+    const sup = parseFloat(construccion.superficieM2) || 0
+    return valorUnitarioConstruccion * sup
+  }, [tieneConstruccion, valorUnitarioConstruccion, construccion.superficieM2])
+
+  const promedioSimpleComparables = useMemo(() => {
+    if (comparablesSel.length === 0) return 0
+    const suma = comparablesSel.reduce((acc, c) => acc + (c.precioM2 ?? 0), 0)
+    return suma / comparablesSel.length
+  }, [comparablesSel])
+
+  const valorUnitarioTerreno = useMemo(() => {
+    if (comparablesSel.length === 0) {
+      // Sin comparables: usar valor manual
+      const v = parseFloat(terreno.valorUnitarioManual) || 0
+      return v
+    }
+    // Con comparables: método elegido × factor sujeto
+    const prom = promedioSimpleComparables
+    return prom * factorTotal
+  }, [comparablesSel, promedioSimpleComparables, factorTotal, terreno.valorUnitarioManual])
+
+  const valorTerreno = useMemo(() => {
+    const sup = parseFloat(terreno.superficieUtil) || 0
+    return valorUnitarioTerreno * sup
+  }, [valorUnitarioTerreno, terreno.superficieUtil])
+
+  const valorComercial = useMemo(() => valorTerreno + valorConstruccion, [valorTerreno, valorConstruccion])
+
+  const valorSegunTipo = useMemo(() => {
+    switch (selectedTipoAvaluo) {
+      case "VENTA_RAPIDA":
+        return valorComercial * 0.85
+      case "CAPITAL_COMERCIAL":
+        return valorComercial * 0.9
+      case "ALQUILER":
+        return valorComercial * 0.008
+      default:
+        return valorComercial
+    }
+  }, [valorComercial, selectedTipoAvaluo])
+
+  // ───────────── Validators por paso ─────────────
+
+  const canProceed = (step: number): boolean => {
+    switch (step) {
+      case 1: return selectedCategory !== null
+      case 2: return selectedOperation !== null && selectedTipoAvaluo !== null
+      case 3: return ubicacion.lat != null && ubicacion.lng != null
+      case 4: return parseFloat(terreno.superficieUtil) > 0
+      case 5: return true
+      case 6: return true
+      case 7: return !tieneConstruccion || (!!construccion.categoria && !!construccion.estado && !!construccion.anoConstruccion && !!construccion.superficieM2)
+      case 8: return true
+      case 9: return true // Comparables opcionales (si no hay, se usa valor manual)
+      case 10: return true
+      case 11: return true
+      default: return false
     }
   }
 
-  // Agregar comparable
-  const [showComparableModal, setShowComparableModal] = useState(false)
-  const [newComparable, setNewComparable] = useState({
-    codigo: "",
-    direccion: "",
-    precio: "",
-    superficie: ""
-  })
+  // ───────────── Submit ─────────────
 
-  const addComparable = () => {
-    if (newComparable.codigo && newComparable.precio && newComparable.superficie) {
-      const precio = parseFloat(newComparable.precio)
-      const superficie = parseFloat(newComparable.superficie)
-      const comparable: Comparable = {
-        id: Date.now().toString(),
-        codigo: newComparable.codigo,
-        direccion: newComparable.direccion,
-        precio,
-        superficie,
-        precioM2: precio / superficie
+  const handleSubmit = async () => {
+    if (selectedCategory === null || selectedOperation === null || selectedTipoAvaluo === null) {
+      toast.error("Faltan datos básicos")
+      return
+    }
+    if (!ubicacion.lat || !ubicacion.lng) {
+      toast.error("Definí la ubicación en el mapa (paso 3)")
+      return
+    }
+    const supUtil = parseFloat(terreno.superficieUtil) || 0
+    if (supUtil <= 0) {
+      toast.error("Definí la superficie del terreno (paso 4)")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const construcciones =
+        tieneConstruccion &&
+        construccion.categoria &&
+        construccion.estado &&
+        construccion.anoConstruccion &&
+        construccion.superficieM2
+          ? [{
+              categoria: construccion.categoria,
+              estado: construccion.estado,
+              anoConstruccion: parseInt(construccion.anoConstruccion),
+              superficieM2: parseFloat(construccion.superficieM2),
+              tipo: construccion.tipo || "Principal",
+            }]
+          : []
+
+      const metodo: MetodoCalculoTerreno =
+        comparablesSel.length === 0 ? "MANUAL" : metodoCalculo
+
+      const valorManual = parseFloat(terreno.valorUnitarioManual) || 0
+
+      const input = {
+        categoria: selectedCategory,
+        operacion: selectedOperation,
+        tipo: selectedTipoAvaluo,
+        direccion: ubicacion.direccion || null,
+        zona: ubicacion.zona || null,
+        lat: ubicacion.lat,
+        lng: ubicacion.lng,
+        terreno: {
+          superficieM2: supUtil,
+          superficieUtil: supUtil,
+          superficieConstruida: parseFloat(terreno.superficieConstruida) || null,
+          valorUnitario: valorManual || valorUnitarioTerreno,
+          frente: parseFloat(terreno.frente) || null,
+          fondo: parseFloat(terreno.fondo) || null,
+          formaLote: terreno.formaLote || null,
+          esEsquina: terreno.esquina,
+          tipoVia: terreno.tipoVia,
+        },
+        amenities: {
+          habitaciones: parseInt(amenities.habitaciones) || null,
+          banos: parseInt(amenities.banos) || null,
+          cocheras: parseInt(amenities.cocheras) || null,
+          ambientes: parseInt(amenities.ambientes) || null,
+        },
+        servicios: {
+          luz: servicios.luz,
+          agua: servicios.agua,
+          alcantarillado: servicios.alcantarillado,
+          gas: servicios.gas,
+          otros: servicios.otros || null,
+        },
+        construcciones,
+        factores: {
+          factorUbicacion: parseFloat(factores.factorUbicacion) || 1,
+          factorVia: parseFloat(factores.factorVia) || 1,
+          factorFrente: parseFloat(factores.factorFrente) || 1,
+          factorEsquina: parseFloat(factores.factorEsquina) || 1,
+          factorMorfologico: parseFloat(factores.factorMorfologico) || 1,
+          factorServicios: parseFloat(factores.factorServicios) || 1,
+        },
+        comparables: comparablesSel.map((c) => ({
+          direccion: c.direccion || c.nombre,
+          precioOferta: c.precioUsd ?? 0,
+          precioM2: c.precioM2 ?? 0,
+          superficie: c.superficieUtil ?? c.superficieConstruida ?? 0,
+          tipo: "VENTA" as const,
+          lat: c.lat,
+          lng: c.lng,
+          distancia: c.distanciaMetros,
+        })),
+        metodoCalculoTerreno: metodo,
+        solicitante: datosGenerales.solicitante || null,
+        propietario: datosGenerales.propietario || null,
+        observaciones: datosGenerales.observaciones || null,
       }
-      setFormData({
-        ...formData,
-        comparables: [...formData.comparables, comparable]
-      })
-      setNewComparable({ codigo: "", direccion: "", precio: "", superficie: "" })
-      setShowComparableModal(false)
+
+      const res = await crearAvaluoAction(input)
+      if (!res.success) {
+        toast.error(res.error || "Error al crear el avalúo")
+        setIsSubmitting(false)
+        return
+      }
+
+      const detalle = res.data
+      setCreatedCodigo(detalle.codigo)
+      setCreatedId(detalle.id)
+
+      // Subir documentos del wizard (si los hay) en segundo plano.
+      // Usamos try/catch por archivo para que un fallo no aborte los demás.
+      if (documentos.length > 0) {
+        try {
+          const { subirDocumentoAction } = await import("@/modules/documentos/actions")
+          let subidos = 0
+          let fallidos = 0
+          for (const d of documentos) {
+            try {
+              const fd = new FormData()
+              fd.append("avaluoId", detalle.id)
+              fd.append("tipo", d.tipo)
+              fd.append("file", d.file)
+              if (d.descripcion) fd.append("descripcion", d.descripcion)
+              const resDoc = await subirDocumentoAction(fd)
+              if (resDoc.success) subidos++
+              else fallidos++
+            } catch (oneErr) {
+              console.error("Error subiendo un documento del wizard:", oneErr)
+              fallidos++
+            }
+          }
+          if (fallidos > 0) {
+            toast.warning(
+              `Documentos: ${subidos} subidos, ${fallidos} fallidos. Podés reintentar desde el detalle.`,
+            )
+          }
+        } catch (docErr) {
+          console.error("Error cargando módulo de documentos:", docErr)
+          toast.warning("Avalúo creado, pero los documentos no pudieron subirse. Podés subirlos desde el detalle.")
+        }
+      }
+
+      // El PDF se genera desde la página de detalle (con todos los datos, mapas y fotos)
+      setShowSuccessModal(true)
+      setIsSubmitting(false)
+    } catch (e) {
+      const err = e as Error
+      console.error("Error submit:", err)
+      toast.error(err.message || "Error inesperado")
+      setIsSubmitting(false)
     }
   }
 
-  const removeComparable = (id: string) => {
-    setFormData({
-      ...formData,
-      comparables: formData.comparables.filter(c => c.id !== id)
-    })
-  }
+  // El PDF completo se genera desde la página de detalle del avalúo.
 
-  const handleNext = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1)
-    }
-  }
+  // ───────────── Render del paso actual ─────────────
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1)
-    }
-  }
-
-  const handleFinish = () => {
-    setShowSuccessModal(true)
-  }
-
-  const getStepContent = () => {
+  const renderStep = () => {
     switch (currentStep) {
-      case 1: // Categoría
+      case 1:
         return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map((category) => {
-              const Icon = category.icon
-              const isSelected = selectedCategory === category.value
-              return (
-                <Card
-                  key={category.value}
-                  className={`border-2 transition-all duration-300 bg-slate-900/50 cursor-pointer group ${
-                    isSelected ? "border-primary bg-primary/10 shadow-xl shadow-primary/20" : "border-slate-800 hover:border-primary/50 hover:bg-slate-800/50 hover:shadow-xl hover:shadow-primary/20"
-                  }`}
-                  onClick={() => setSelectedCategory(category.value)}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${isSelected ? "bg-primary text-white" : "bg-primary/20 text-primary"}`}>
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      {isSelected && <Check className="w-5 h-5 text-primary" />}
-                    </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      {category.label}
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      {category.description}
-                    </p>
-                  </div>
-                </Card>
-              )
-            })}
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((cat) => {
+                const Icon = cat.icon
+                const active = selectedCategory === cat.value
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => setSelectedCategory(cat.value)}
+                    className={`p-6 rounded-xl border-2 text-left transition-all ${
+                      active
+                        ? "border-primary bg-primary/10"
+                        : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
+                    }`}
+                  >
+                    <Icon className={`w-8 h-8 mb-3 ${active ? "text-primary" : "text-slate-400"}`} />
+                    <h3 className="text-white font-semibold mb-1">{cat.label}</h3>
+                    <p className="text-xs text-slate-500">{cat.description}</p>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )
 
-      case 2: // Operación
-        return (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
-            {operations.map((operation) => {
-              const isSelected = selectedOperation === operation.value
-              return (
-                <Card
-                  key={operation.value}
-                  className={`border-2 transition-all duration-300 bg-slate-900/50 cursor-pointer group overflow-hidden ${
-                    isSelected ? "border-white bg-white/5 shadow-xl shadow-white/20" : "border-slate-800 hover:border-white/50 hover:bg-slate-800/50 hover:shadow-xl hover:shadow-white/20"
-                  }`}
-                  onClick={() => setSelectedOperation(operation.value)}
-                >
-                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${operation.color} opacity-10 rounded-full filter blur-3xl group-hover:opacity-20 transition-opacity`} />
-                  <div className="relative p-6 text-center">
-                    <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${operation.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <span className="text-2xl font-bold text-white">
-                        {operation.value === "VENTA" ? "$" : operation.value === "ALQUILER" ? "🔑" : "📋"}
-                      </span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
-                      {operation.label}
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      {operation.description}
-                    </p>
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        )
-
-      case 3: // Ubicación
+      case 2:
         return (
           <div className="max-w-4xl mx-auto space-y-6">
-            <Card className="border-2 border-slate-800 bg-slate-900/50 overflow-hidden">
-              <div className="relative h-[300px] sm:h-[400px] bg-slate-800">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center space-y-4">
-                    <MapPin className="w-12 h-12 text-slate-600 mx-auto" />
-                    <p className="text-sm text-slate-500">Mapa con selección de ubicación</p>
-                    <Button className="bg-primary hover:bg-primary/90">
-                      Seleccionar en Mapa
-                    </Button>
-                  </div>
-                </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3">Operación</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {operations.map((op) => {
+                  const active = selectedOperation === op.value
+                  return (
+                    <button
+                      key={op.value}
+                      onClick={() => setSelectedOperation(op.value)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        active ? "border-primary bg-primary/10" : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
+                      }`}
+                    >
+                      <h4 className="text-white font-semibold mb-1">{op.label}</h4>
+                      <p className="text-xs text-slate-500">{op.description}</p>
+                    </button>
+                  )
+                })}
               </div>
-            </Card>
+            </div>
 
-            <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Datos de Ubicación</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="direccion">Dirección *</Label>
-                    <Input
-                      id="direccion"
-                      value={formData.direccion}
-                      onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                      className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="Calle, Número, Zona"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zona">Zona / Barrio</Label>
-                    <Input
-                      id="zona"
-                      value={formData.zona}
-                      onChange={(e) => setFormData({ ...formData, zona: e.target.value })}
-                      className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="Zona Sur, Centro, etc."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lat">Latitud</Label>
-                    <Input
-                      id="lat"
-                      type="number"
-                      value={formData.lat}
-                      onChange={(e) => setFormData({ ...formData, lat: e.target.value })}
-                      className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="-17.3895"
-                      step="0.00001"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lng">Longitud</Label>
-                    <Input
-                      id="lng"
-                      type="number"
-                      value={formData.lng}
-                      onChange={(e) => setFormData({ ...formData, lng: e.target.value })}
-                      className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="-66.1569"
-                      step="0.00001"
-                    />
-                  </div>
-                </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3">Tipo de avalúo</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {tiposAvaluo.map((t) => {
+                  const active = selectedTipoAvaluo === t.value
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => setSelectedTipoAvaluo(t.value)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        active ? "border-primary bg-primary/10" : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
+                      }`}
+                    >
+                      <h4 className="text-white font-semibold mb-1">{t.label}</h4>
+                      <p className="text-xs text-slate-400">{t.descuento}</p>
+                    </button>
+                  )
+                })}
               </div>
-            </Card>
+            </div>
           </div>
         )
 
-      case 4: // Terreno
+      case 3:
+        return (
+          <div className="max-w-4xl mx-auto">
+            <MapaUbicacion
+              lat={ubicacion.lat}
+              lng={ubicacion.lng}
+              direccion={ubicacion.direccion}
+              zona={ubicacion.zona}
+              onChange={(u) => setUbicacion(u)}
+            />
+          </div>
+        )
+
+      case 4:
         return (
           <div className="max-w-4xl mx-auto">
             <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Datos del Terreno</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="superficieTerreno">Superficie (m²) *</Label>
+              <div className="p-4 sm:p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Ruler className="w-5 h-5 text-primary" />
+                  Superficies y medidas
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">
+                      Superficie útil (terreno total) m² *
+                    </Label>
                     <Input
-                      id="superficieTerreno"
                       type="number"
-                      value={formData.superficieTerreno}
-                      onChange={(e) => setFormData({ ...formData, superficieTerreno: e.target.value })}
+                      value={terreno.superficieUtil}
+                      onChange={(e) => setTerreno({ ...terreno, superficieUtil: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="150"
+                      placeholder="300"
                     />
+                    <p className="text-[10px] text-slate-500">Todos los m² del lote</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="frente">Frente (m)</Label>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">
+                      Superficie construida m²
+                    </Label>
                     <Input
-                      id="frente"
                       type="number"
-                      value={formData.frente}
-                      onChange={(e) => setFormData({ ...formData, frente: e.target.value })}
+                      value={terreno.superficieConstruida}
+                      onChange={(e) => setTerreno({ ...terreno, superficieConstruida: e.target.value })}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="200"
+                    />
+                    <p className="text-[10px] text-slate-500">m² edificados (ej: 300 totales, 200 construidos)</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Frente (m)</Label>
+                    <Input
+                      type="number"
+                      value={terreno.frente}
+                      onChange={(e) => setTerreno({ ...terreno, frente: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white"
                       placeholder="10"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fondo">Fondo (m)</Label>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Fondo (m)</Label>
                     <Input
-                      id="fondo"
                       type="number"
-                      value={formData.fondo}
-                      onChange={(e) => setFormData({ ...formData, fondo: e.target.value })}
+                      value={terreno.fondo}
+                      onChange={(e) => setTerreno({ ...terreno, fondo: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="15"
+                      placeholder="30"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="formaLote">Forma del Lote</Label>
-                    <select
-                      id="formaLote"
-                      value={formData.formaLote}
-                      onChange={(e) => setFormData({ ...formData, formaLote: e.target.value })}
-                      className="w-full h-10 px-3 bg-slate-800 border-2 border-slate-700 rounded-md text-white text-sm"
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Forma del lote</Label>
+                    <Select
+                      value={terreno.formaLote}
+                      onValueChange={(v) => setTerreno({ ...terreno, formaLote: v })}
                     >
-                      <option value="">Seleccionar...</option>
-                      <option value="REGULAR">Regular</option>
-                      <option value="IRREGULAR">Irregular</option>
-                      <option value="RECTANGULAR">Rectangular</option>
-                      <option value="CUADRADO">Cuadrado</option>
-                    </select>
+                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-10">
+                        <span className="text-white text-sm">
+                          {terreno.formaLote
+                            ? (FORMAS_LOTE.find((x) => x.value === terreno.formaLote)?.label ?? terreno.formaLote)
+                            : "Seleccionar..."}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        {FORMAS_LOTE.map((x) => (
+                          <SelectItem key={x.value} value={x.value} className="text-white focus:bg-slate-700">
+                            {x.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tipoVia">Tipo de Vía</Label>
-                    <select
-                      id="tipoVia"
-                      value={formData.tipoVia}
-                      onChange={(e) => setFormData({ ...formData, tipoVia: e.target.value })}
-                      className="w-full h-10 px-3 bg-slate-800 border-2 border-slate-700 rounded-md text-white text-sm"
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Tipo de vía</Label>
+                    <Select
+                      value={terreno.tipoVia}
+                      onValueChange={(v) => setTerreno({ ...terreno, tipoVia: v })}
                     >
-                      <option value="">Seleccionar...</option>
-                      <option value="PRINCIPAL">Avenida Principal</option>
-                      <option value="SECUNDARIA">Calle Secundaria</option>
-                      <option value="CALLEJON">Callejón</option>
-                      <option value="PASAJE">Pasaje</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="valorUnitario">Valor Unitario (USD/m²) *</Label>
-                    <Input
-                      id="valorUnitario"
-                      type="number"
-                      value={formData.valorUnitario}
-                      onChange={(e) => setFormData({ ...formData, valorUnitario: e.target.value })}
-                      className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="250"
-                    />
+                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-10">
+                        <span className="text-white text-sm">
+                          {TIPOS_VIA.find((x) => x.value === terreno.tipoVia)?.label ?? terreno.tipoVia}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        {TIPOS_VIA.map((x) => (
+                          <SelectItem key={x.value} value={x.value} className="text-white focus:bg-slate-700">
+                            {x.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    id="esquina"
-                    checked={formData.esquina}
-                    onChange={(e) => setFormData({ ...formData, esquina: e.target.checked })}
+                    checked={terreno.esquina}
+                    onChange={(e) => setTerreno({ ...terreno, esquina: e.target.checked })}
                     className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
                   />
-                  <Label htmlFor="esquina" className="text-sm text-slate-300">
-                    Es un lote de esquina
+                  <span className="text-sm text-slate-300">Es un lote de esquina</span>
+                </label>
+
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                  <p className="text-xs text-blue-200">
+                    El valor del m² del terreno se calculará en el paso 9 (Comparables).
+                    Si no agregás comparables, vas a poder ingresar un valor manual a continuación.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-400">
+                    Valor unitario manual del terreno (USD/m²) — solo si no hay comparables
                   </Label>
+                  <Input
+                    type="number"
+                    value={terreno.valorUnitarioManual}
+                    onChange={(e) => setTerreno({ ...terreno, valorUnitarioManual: e.target.value })}
+                    className="bg-slate-800 border-slate-700 text-white"
+                    placeholder="Se ignora si hay comparables"
+                  />
                 </div>
               </div>
             </Card>
           </div>
         )
 
-      case 5: // Construcción
+      case 5:
         return (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-4">
             <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Datos de la Construcción</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="anioConstruccion">Año de Construcción *</Label>
+              <div className="p-4 sm:p-6">
+                <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <Home className="w-5 h-5 text-primary" />
+                  Comodidades (informativo)
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">
+                  Estos datos no afectan el cálculo del avalúo. Van al PDF como información descriptiva.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Habitaciones</Label>
                     <Input
-                      id="anioConstruccion"
                       type="number"
-                      value={formData.anioConstruccion}
-                      onChange={(e) => setFormData({ ...formData, anioConstruccion: e.target.value })}
+                      min="0"
+                      value={amenities.habitaciones}
+                      onChange={(e) => setAmenities({ ...amenities, habitaciones: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="2010"
-                      min="1900"
-                      max={new Date().getFullYear()}
+                      placeholder="3"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="estadoConservacion">Estado de Conservación</Label>
-                    <select
-                      id="estadoConservacion"
-                      value={formData.estadoConservacion}
-                      onChange={(e) => setFormData({ ...formData, estadoConservacion: e.target.value })}
-                      className="w-full h-10 px-3 bg-slate-800 border-2 border-slate-700 rounded-md text-white text-sm"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="NUEVO">Nuevo</option>
-                      <option value="EXCELENTE">Excelente</option>
-                      <option value="BUENO">Bueno</option>
-                      <option value="REGULAR">Regular</option>
-                      <option value="MALO">Malo</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="categoriaConstruccion">Categoría</Label>
-                    <select
-                      id="categoriaConstruccion"
-                      value={formData.categoriaConstruccion}
-                      onChange={(e) => setFormData({ ...formData, categoriaConstruccion: e.target.value })}
-                      className="w-full h-10 px-3 bg-slate-800 border-2 border-slate-700 rounded-md text-white text-sm"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="LUJO">Lujo</option>
-                      <option value="ECONOMICA">Económica</option>
-                      <option value="MEDIA">Media</option>
-                      <option value="POPULAR">Popular</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="niveles">Número de Niveles</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Baños</Label>
                     <Input
-                      id="niveles"
                       type="number"
-                      value={formData.niveles}
-                      onChange={(e) => setFormData({ ...formData, niveles: e.target.value })}
+                      min="0"
+                      value={amenities.banos}
+                      onChange={(e) => setAmenities({ ...amenities, banos: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white"
                       placeholder="2"
-                      min="1"
                     />
                   </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="valorReposicion">Valor de Reposición (USD) *</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Cocheras</Label>
                     <Input
-                      id="valorReposicion"
                       type="number"
-                      value={formData.valorReposicion}
-                      onChange={(e) => setFormData({ ...formData, valorReposicion: e.target.value })}
+                      min="0"
+                      value={amenities.cocheras}
+                      onChange={(e) => setAmenities({ ...amenities, cocheras: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white"
-                      placeholder="60000"
+                      placeholder="1"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Ambientes</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={amenities.ambientes}
+                      onChange={(e) => setAmenities({ ...amenities, ambientes: e.target.value })}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="5"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="border-2 border-slate-800 bg-slate-900/50">
+              <div className="p-4 sm:p-6">
+                <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Servicios básicos
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {([
+                    { key: "luz", label: "Luz eléctrica" },
+                    { key: "agua", label: "Agua potable" },
+                    { key: "alcantarillado", label: "Alcantarillado" },
+                    { key: "gas", label: "Gas domiciliario" },
+                  ] as const).map((s) => (
+                    <label
+                      key={s.key}
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        servicios[s.key]
+                          ? "bg-emerald-500/10 border-emerald-500/40"
+                          : "bg-slate-800/40 border-slate-700"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={servicios[s.key]}
+                        onChange={(e) => setServicios({ ...servicios, [s.key]: e.target.checked })}
+                        className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-primary"
+                      />
+                      <span className={`text-sm ${servicios[s.key] ? "text-emerald-300" : "text-slate-300"}`}>
+                        {s.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  <Label className="text-xs text-slate-400">Otros servicios</Label>
+                  <Input
+                    type="text"
+                    value={servicios.otros}
+                    onChange={(e) => setServicios({ ...servicios, otros: e.target.value })}
+                    className="bg-slate-800 border-slate-700 text-white"
+                    placeholder="Internet, alcantarilla pluvial, etc."
+                  />
+                </div>
+              </div>
+            </Card>
+          </div>
+        )
+
+      case 6:
+        return (
+          <div className="max-w-4xl mx-auto space-y-4">
+            <DocumentosWizard documentos={documentos} onChange={setDocumentos} />
+
+            <Card className="border-2 border-slate-800 bg-slate-900/50">
+              <div className="p-4 sm:p-6 space-y-4">
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Datos del avalúo
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Solicitante</Label>
+                    <Input
+                      value={datosGenerales.solicitante}
+                      onChange={(e) => setDatosGenerales({ ...datosGenerales, solicitante: e.target.value })}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="Ej: Banco Unión"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-400">Propietario</Label>
+                    <Input
+                      value={datosGenerales.propietario}
+                      onChange={(e) => setDatosGenerales({ ...datosGenerales, propietario: e.target.value })}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="Nombre del propietario"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs text-slate-400">Observaciones</Label>
+                    <Input
+                      value={datosGenerales.observaciones}
+                      onChange={(e) => setDatosGenerales({ ...datosGenerales, observaciones: e.target.value })}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="Observaciones adicionales"
                     />
                   </div>
                 </div>
@@ -529,132 +836,269 @@ export default function CrearAvaluoPage() {
           </div>
         )
 
-      case 6: // Depreciación
+      case 7:
         return (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <TablaReposicion
+              categoriaSel={tieneConstruccion ? (construccion.categoria as CategoriaConstructiva) || "" : ""}
+              estadoSel={tieneConstruccion ? (construccion.estado as EstadoConservacion) || "" : ""}
+              valorUnitarioActual={valorUnitarioConstruccion}
+            />
+
             <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Cálculo de Depreciación</h3>
-                  <Button onClick={calculateDepreciacion} size="sm" className="bg-primary hover:bg-primary/90">
-                    <Calculator className="w-4 h-4 mr-2" />
-                    Calcular
-                  </Button>
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-primary" />
+                    Construcción
+                  </h3>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!tieneConstruccion}
+                      onChange={(e) => setTieneConstruccion(!e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-primary"
+                    />
+                    <span className="text-slate-300">Terreno puro (sin construcción)</span>
+                  </label>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-800/50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500 mb-1">Año Construcción</p>
-                    <p className="text-lg font-semibold text-white">{formData.anioConstruccion || "-"}</p>
-                  </div>
-                  <div className="bg-slate-800/50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500 mb-1">Años Transcurridos</p>
-                    <p className="text-lg font-semibold text-white">{formData.anosTranscurridos || "-"}</p>
-                  </div>
-                  <div className="bg-slate-800/50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500 mb-1">Vida Útil</p>
-                    <p className="text-lg font-semibold text-white">{formData.vidaUtil} años</p>
-                  </div>
-                  <div className="bg-slate-800/50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500 mb-1">Depreciación Anual</p>
-                    <p className="text-lg font-semibold text-yellow-400">{formData.depreciacionAnual || "-"}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-slate-800/50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500 mb-1">Valor de Reposición</p>
-                    <p className="text-xl font-semibold text-white">
-                      ${formData.valorReposicion ? parseFloat(formData.valorReposicion).toLocaleString() : "0"}
-                    </p>
-                  </div>
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                    <p className="text-xs text-slate-500 mb-1">Valor Neto (con depreciación)</p>
-                    <p className="text-xl font-semibold text-green-400">
-                      ${formData.valorNeto ? parseFloat(formData.valorNeto).toLocaleString() : "0"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )
-
-      case 7: // Comparables
-        return (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Comparables de Mercado</h3>
-                  <Button onClick={() => setShowComparableModal(true)} size="sm" className="bg-primary hover:bg-primary/90">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Agregar Comparable
-                  </Button>
-                </div>
-
-                {formData.comparables.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
-                    No hay comparables agregados aún
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {formData.comparables.map((comp) => (
-                      <div key={comp.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{comp.codigo}</p>
-                          <p className="text-xs text-slate-500">{comp.direccion}</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-xs text-slate-500">Precio</p>
-                            <p className="text-sm font-medium text-white">${comp.precio.toLocaleString()}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-slate-500">m²</p>
-                            <p className="text-sm font-medium text-white">{comp.superficie}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-slate-500">USD/m²</p>
-                            <p className="text-sm font-medium text-green-400">${comp.precioM2.toFixed(2)}</p>
-                          </div>
-                          <button
-                            onClick={() => removeComparable(comp.id)}
-                            className="p-2 text-slate-400 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                {tieneConstruccion ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-400">Tipo</Label>
+                        <Input
+                          type="text"
+                          value={construccion.tipo}
+                          onChange={(e) => setConstruccion({ ...construccion, tipo: e.target.value })}
+                          className="bg-slate-800 border-slate-700 text-white"
+                          placeholder="Principal"
+                        />
                       </div>
-                    ))}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-400">Año de construcción *</Label>
+                        <Input
+                          type="number"
+                          min="1900"
+                          max={new Date().getFullYear()}
+                          value={construccion.anoConstruccion}
+                          onChange={(e) => setConstruccion({ ...construccion, anoConstruccion: e.target.value })}
+                          className="bg-slate-800 border-slate-700 text-white"
+                          placeholder="2010"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-400">Estado conservación *</Label>
+                        <Select
+                          value={construccion.estado}
+                          onValueChange={(v) => setConstruccion({ ...construccion, estado: v })}
+                        >
+                          <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-10">
+                            <span className="text-white text-sm">
+                              {construccion.estado
+                                ? (ESTADOS_CONSERV.find((x) => x.value === construccion.estado)?.label ?? construccion.estado)
+                                : "Seleccionar..."}
+                            </span>
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-700">
+                            {ESTADOS_CONSERV.map((x) => (
+                              <SelectItem key={x.value} value={x.value} className="text-white focus:bg-slate-700">
+                                {x.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-400">Categoría *</Label>
+                        <Select
+                          value={construccion.categoria}
+                          onValueChange={(v) => setConstruccion({ ...construccion, categoria: v })}
+                        >
+                          <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-10">
+                            <span className="text-white text-sm">
+                              {construccion.categoria
+                                ? (CATEGORIAS_CONSTR.find((x) => x.value === construccion.categoria)?.label ?? construccion.categoria)
+                                : "Seleccionar..."}
+                            </span>
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-700">
+                            {CATEGORIAS_CONSTR.map((x) => (
+                              <SelectItem key={x.value} value={x.value} className="text-white focus:bg-slate-700">
+                                {x.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-400">Superficie construida (m²) *</Label>
+                        <Input
+                          type="number"
+                          value={construccion.superficieM2}
+                          onChange={(e) => setConstruccion({ ...construccion, superficieM2: e.target.value })}
+                          className="bg-slate-800 border-slate-700 text-white"
+                          placeholder="200"
+                        />
+                      </div>
+                    </div>
+
+                    {valorUnitarioConstruccion != null && construccion.superficieM2 && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                        <p className="text-xs text-emerald-300">Valor de la construcción</p>
+                        <p className="text-xl font-bold text-white">
+                          ${valorConstruccion.toLocaleString()}
+                          <span className="text-xs text-slate-500 font-normal">
+                            {" "}(USD {valorUnitarioConstruccion.toLocaleString()}/m² × {construccion.superficieM2} m²)
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-4 text-center">
+                    <p className="text-sm text-slate-400">
+                      Avalúo de terreno puro. No se calculará valor de construcción.
+                    </p>
                   </div>
                 )}
               </div>
             </Card>
+          </div>
+        )
 
-            {/* Resumen */}
-            {formData.comparables.length > 0 && (
+      case 8:
+        return (
+          <div className="max-w-4xl mx-auto">
+            <Card className="border-2 border-slate-800 bg-slate-900/50">
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-primary" />
+                    Factores de homologación del sujeto
+                  </h3>
+                  <p className="text-xs text-slate-500">Rango: 0.50 - 1.50</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {FACTORES_LABELS.map((f) => (
+                    <div key={f.key} className="space-y-1.5">
+                      <Label className="text-xs text-slate-400">{f.label}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.5"
+                        max="1.5"
+                        value={factores[f.key]}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value)
+                          if (!Number.isNaN(v)) {
+                            const clamped = Math.min(1.5, Math.max(0.5, v))
+                            setFactores({ ...factores, [f.key]: String(clamped) })
+                          } else {
+                            setFactores({ ...factores, [f.key]: e.target.value })
+                          }
+                        }}
+                        className="bg-slate-800 border-slate-700 text-white"
+                      />
+                      <p className="text-[10px] text-slate-500">{f.descripcion}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-slate-400">Factor total (multiplicación)</p>
+                      <p className="text-2xl font-bold text-primary">{factorTotal.toFixed(4)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">Rango válido</p>
+                      <p className="text-sm text-slate-300">0.50 - 1.50</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )
+
+      case 9:
+        return (
+          <div className="max-w-5xl mx-auto space-y-4">
+            <ComparablesMapa
+              sujetoLat={ubicacion.lat}
+              sujetoLng={ubicacion.lng}
+              seleccionados={comparablesSel}
+              onSeleccionChange={setComparablesSel}
+            />
+
+            {comparablesSel.length === 0 ? (
+              <Card className="border-2 border-blue-500/30 bg-blue-500/5">
+                <div className="p-4 sm:p-6">
+                  <h4 className="text-sm font-semibold text-blue-300 mb-2">
+                    Sin comparables seleccionados
+                  </h4>
+                  <p className="text-xs text-blue-200">
+                    Se usará el valor unitario manual del paso 4 ({terreno.valorUnitarioManual || "—"} USD/m²).
+                    Agregá comparables si querés un cálculo automático basado en el mercado.
+                  </p>
+                </div>
+              </Card>
+            ) : (
               <Card className="border-2 border-slate-800 bg-slate-900/50">
-                <div className="p-6">
-                  <h4 className="text-sm font-semibold text-white mb-3">Promedios de Comparables</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 sm:p-6 space-y-3">
+                  <h4 className="text-sm font-semibold text-white">Resumen del cálculo</h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Precio Promedio</p>
-                      <p className="text-lg font-semibold text-white">
-                        ${(formData.comparables.reduce((sum, c) => sum + c.precio, 0) / formData.comparables.length).toFixed(2)}
-                      </p>
+                      <p className="text-xs text-slate-500">Comparables</p>
+                      <p className="text-lg font-semibold text-white">{comparablesSel.length}</p>
                     </div>
                     <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Superficie Promedio</p>
+                      <p className="text-xs text-slate-500">PU promedio simple</p>
                       <p className="text-lg font-semibold text-white">
-                        {(formData.comparables.reduce((sum, c) => sum + c.superficie, 0) / formData.comparables.length).toFixed(2)} m²
+                        ${promedioSimpleComparables.toFixed(2)}
+                        <span className="text-xs text-slate-500">/m²</span>
                       </p>
                     </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Precio/m² Promedio</p>
-                      <p className="text-lg font-semibold text-green-400">
-                        ${(formData.comparables.reduce((sum, c) => sum + c.precioM2, 0) / formData.comparables.length).toFixed(2)}
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                      <p className="text-xs text-emerald-300">Valor unitario final</p>
+                      <p className="text-lg font-bold text-emerald-300">
+                        ${valorUnitarioTerreno.toFixed(2)}
+                        <span className="text-xs text-slate-400">/m²</span>
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/30 rounded-lg p-3 text-xs text-slate-400">
+                    Promedio simple × factor sujeto ({factorTotal.toFixed(4)}) = {valorUnitarioTerreno.toFixed(2)} USD/m²
+                    <br />
+                    Superficie útil {terreno.superficieUtil || 0} m² × {valorUnitarioTerreno.toFixed(2)} = ${valorTerreno.toLocaleString()}
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-slate-400">Método de cálculo a utilizar</Label>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setMetodoCalculo("SIMPLE")}
+                        className={`px-3 py-2 rounded text-xs font-medium ${
+                          metodoCalculo === "SIMPLE" ? "bg-primary text-white" : "bg-slate-800 text-slate-300"
+                        }`}
+                      >
+                        Promedio simple
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMetodoCalculo("MANUAL")}
+                        className={`px-3 py-2 rounded text-xs font-medium ${
+                          metodoCalculo === "MANUAL" ? "bg-primary text-white" : "bg-slate-800 text-slate-300"
+                        }`}
+                      >
+                        Manual ({terreno.valorUnitarioManual || "—"} USD/m²)
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -663,68 +1107,23 @@ export default function CrearAvaluoPage() {
           </div>
         )
 
-      case 8: // Factores de Homologación
+      case 10:
         return (
           <div className="max-w-4xl mx-auto">
             <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Factores de Homologación</h3>
-                  <p className="text-xs text-slate-500">Máximo: 1.50 cada factor</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { key: "factorUbicacion", label: "Ubicación" },
-                    { key: "factorVia", label: "Vía" },
-                    { key: "factorFrente", label: "Frente" },
-                    { key: "factorEsquina", label: "Esquina" },
-                    { key: "factorMorfologico", label: "Morfología" },
-                    { key: "factorServicios", label: "Servicios" },
-                    { key: "factorEquipamiento", label: "Equipamiento" }
-                  ].map((factor) => (
-                    <div key={factor.key} className="space-y-2">
-                      <Label htmlFor={factor.key}>{factor.label}</Label>
-                      <Input
-                        id={factor.key}
-                        type="number"
-                        step="0.01"
-                        min="0.5"
-                        max="1.50"
-                        value={formData[factor.key as keyof typeof formData] as string}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value)
-                          if (value >= 0.5 && value <= 1.50) {
-                            setFormData({ ...formData, [factor.key]: e.target.value })
-                          }
-                        }}
-                        className="bg-slate-800 border-slate-700 text-white"
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Factor total */}
-                <div className="mt-6 bg-primary/10 border border-primary/30 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Factor de Homologación Total</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {
-                          (parseFloat(formData.factorUbicacion) +
-                           parseFloat(formData.factorVia) +
-                           parseFloat(formData.factorFrente) +
-                           parseFloat(formData.factorEsquina) +
-                           parseFloat(formData.factorMorfologico) +
-                           parseFloat(formData.factorServicios) +
-                           parseFloat(formData.factorEquipamiento)) / 7
-                        }
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">Rango válido</p>
-                      <p className="text-sm text-slate-400">0.50 - 1.50</p>
-                    </div>
+              <div className="p-4 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <RadarIcon className="w-8 h-8 text-cyan-400 shrink-0 mt-1" />
+                  <div className="space-y-2">
+                    <h3 className="text-base font-semibold text-white">Radar de equipamientos</h3>
+                    <p className="text-sm text-slate-400">
+                      El análisis de equipamientos (hospitales, colegios, parques, bancos, etc.) se genera automáticamente
+                      <span className="text-white font-medium"> después de crear el avalúo</span>, en la página de detalle,
+                      consultando OpenStreetMap.
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Esta información se incluirá en el PDF cuando lo generes o regeneres desde el detalle.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -732,228 +1131,92 @@ export default function CrearAvaluoPage() {
           </div>
         )
 
-      case 9: // Radar de Equipamientos
+      case 11:
         return (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-4">
             <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Radar de Equipamientos</h3>
-                  <select
-                    value={formData.radioRadar}
-                    onChange={(e) => setFormData({ ...formData, radioRadar: e.target.value })}
-                    className="h-9 px-3 bg-slate-800 border-2 border-slate-700 rounded-md text-white text-sm"
-                  >
-                    <option value="250">Radio: 250m</option>
-                    <option value="500">Radio: 500m</option>
-                    <option value="750">Radio: 750m</option>
-                    <option value="1000">Radio: 1000m</option>
-                  </select>
-                </div>
+              <div className="p-4 sm:p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Resumen del avalúo</h3>
 
-                <div className="relative h-[300px] sm:h-[400px] bg-slate-800 rounded-lg">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center space-y-4">
-                      <MapPin className="w-12 h-12 text-slate-600 mx-auto" />
-                      <p className="text-sm text-slate-500">Mapa con radar de equipamientos</p>
-                      <p className="text-xs text-slate-600">
-                        Hospitales, Colegios, Universidades, Parques, Bancos, Comercios
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                  <div className="bg-slate-800/40 rounded p-3">
+                    <p className="text-xs text-slate-500">Categoría</p>
+                    <p className="text-sm font-medium text-white">
+                      {categories.find((c) => c.value === selectedCategory)?.label ?? "—"}
+                    </p>
+                  </div>
+                  <div className="bg-slate-800/40 rounded p-3">
+                    <p className="text-xs text-slate-500">Operación / Tipo</p>
+                    <p className="text-sm font-medium text-white">
+                      {operations.find((o) => o.value === selectedOperation)?.label ?? "—"} ·{" "}
+                      {tiposAvaluo.find((t) => t.value === selectedTipoAvaluo)?.label ?? "—"}
+                    </p>
+                  </div>
+                  <div className="bg-slate-800/40 rounded p-3 sm:col-span-2">
+                    <p className="text-xs text-slate-500">Ubicación</p>
+                    <p className="text-sm font-medium text-white">
+                      {ubicacion.direccion || "Sin dirección"} · {ubicacion.zona || "Sin zona"}
+                    </p>
+                    {ubicacion.lat != null && (
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        {ubicacion.lat.toFixed(5)}, {ubicacion.lng?.toFixed(5)}
                       </p>
-                    </div>
+                    )}
+                  </div>
+                  <div className="bg-slate-800/40 rounded p-3">
+                    <p className="text-xs text-slate-500">Superficie útil</p>
+                    <p className="text-sm font-medium text-white">{terreno.superficieUtil || "—"} m²</p>
+                  </div>
+                  <div className="bg-slate-800/40 rounded p-3">
+                    <p className="text-xs text-slate-500">Superficie construida</p>
+                    <p className="text-sm font-medium text-white">{terreno.superficieConstruida || "—"}</p>
                   </div>
                 </div>
-              </div>
-            </Card>
 
-            <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <h4 className="text-sm font-semibold text-white mb-3">Equipamientos Detectados</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { name: "Hospitales", count: 2, icon: "🏥" },
-                    { name: "Colegios", count: 3, icon: "🎓" },
-                    { name: "Universidades", count: 1, icon: "📚" },
-                    { name: "Parques", count: 2, icon: "🌳" },
-                    { name: "Bancos", count: 4, icon: "🏦" },
-                    { name: "Comercios", count: 8, icon: "🛒" },
-                    { name: "Iglesias", count: 2, icon: "⛪" },
-                    { name: "Transporte", count: 3, icon: "🚌" }
-                  ].map((item) => (
-                    <div key={item.name} className="bg-slate-800/50 rounded-lg p-3 text-center">
-                      <div className="text-2xl mb-1">{item.icon}</div>
-                      <p className="text-xs text-slate-400">{item.name}</p>
-                      <p className="text-lg font-semibold text-white">{item.count}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-        )
-
-      case 10: // Documentos
-        return (
-          <div className="max-w-4xl mx-auto">
-            <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Documentos y Fotografías</h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { key: "folioReal", label: "Folio Real", icon: "📄" },
-                    { key: "catastro", label: "Catastro", icon: "📋" },
-                    { key: "impuestos", label: "Impuestos", icon: "💰" },
-                    { key: "plano", label: "Plano", icon: "📐" },
-                    { key: "fotografias", label: "Fotografías", icon: "📷" },
-                    { key: "avaluoPdf", label: "Avalúo PDF", icon: "📑", disabled: true }
-                  ].map((doc) => (
-                    <div key={doc.key} className={`relative border-2 rounded-lg p-4 transition-all ${
-                      formData[doc.key as keyof typeof formData]
-                        ? "border-green-500 bg-green-500/10"
-                        : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
-                    } ${doc.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                    onClick={() => !doc.disabled && setFormData({ ...formData, [doc.key]: !formData[doc.key as keyof typeof formData] })}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl">{doc.icon}</div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{doc.label}</p>
-                          <p className="text-xs text-slate-500">
-                            {formData[doc.key as keyof typeof formData] ? "Agregado" : "Pendiente"}
-                          </p>
-                        </div>
-                        {formData[doc.key as keyof typeof formData] && (
-                          <Check className="w-5 h-5 text-green-500" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Datos generales */}
-                <div className="mt-6 space-y-4">
-                  <h4 className="text-sm font-semibold text-white">Datos del Avalúo</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="solicitante">Solicitante</Label>
-                      <Input
-                        id="solicitante"
-                        value={formData.solicitante}
-                        onChange={(e) => setFormData({ ...formData, solicitante: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
-                        placeholder="Nombre del solicitante"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="propietario">Propietario</Label>
-                      <Input
-                        id="propietario"
-                        value={formData.propietario}
-                        onChange={(e) => setFormData({ ...formData, propietario: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
-                        placeholder="Nombre del propietario"
-                      />
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="observaciones">Observaciones</Label>
-                      <Input
-                        id="observaciones"
-                        value={formData.observaciones}
-                        onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
-                        placeholder="Observaciones adicionales"
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between bg-slate-800/40 rounded p-3">
+                    <span className="text-sm text-slate-400">Valor del terreno</span>
+                    <span className="text-base font-semibold text-white">
+                      ${valorTerreno.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-800/40 rounded p-3">
+                    <span className="text-sm text-slate-400">Valor de la construcción</span>
+                    <span className="text-base font-semibold text-white">
+                      ${valorConstruccion.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded p-3">
+                    <span className="text-sm text-primary font-medium">
+                      Valor final ({tiposAvaluo.find((t) => t.value === selectedTipoAvaluo)?.label})
+                    </span>
+                    <span className="text-2xl font-bold text-primary">
+                      ${valorSegunTipo.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
-              </div>
-            </Card>
-          </div>
-        )
 
-      case 11: // Finalizar
-        return (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <Card className="border-2 border-slate-800 bg-slate-900/50">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Resumen del Avalúo</h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Categoría</p>
-                      <p className="text-sm font-medium text-white">
-                        {selectedCategory && categories.find(c => c.value === selectedCategory)?.label}
-                      </p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Operación</p>
-                      <p className="text-sm font-medium text-white">
-                        {selectedOperation && operations.find(o => o.value === selectedOperation)?.label}
-                      </p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Ubicación</p>
-                      <p className="text-sm font-medium text-white">{formData.direccion || "-"}</p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Superficie Terreno</p>
-                      <p className="text-sm font-medium text-white">
-                        {formData.superficieTerreno ? `${formData.superficieTerreno} m²` : "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Valor Terreno</p>
-                      <p className="text-sm font-medium text-white">
-                        ${formData.valorUnitario && formData.superficieTerreno
-                          ? (parseFloat(formData.valorUnitario) * parseFloat(formData.superficieTerreno)).toLocaleString()
-                          : "0"}
-                      </p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Valor Construcción</p>
-                      <p className="text-sm font-medium text-green-400">
-                        ${formData.valorNeto || "0"}
-                      </p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Comparables</p>
-                      <p className="text-sm font-medium text-white">
-                        {formData.comparables.length} agregados
-                      </p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Factor Homologación</p>
-                      <p className="text-sm font-medium text-white">
-                        {((parseFloat(formData.factorUbicacion) +
-                          parseFloat(formData.factorVia) +
-                          parseFloat(formData.factorFrente) +
-                          parseFloat(formData.factorEsquina) +
-                          parseFloat(formData.factorMorfologico) +
-                          parseFloat(formData.factorServicios) +
-                          parseFloat(formData.factorEquipamiento)) / 7).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
+                <div className="mt-4 text-xs text-slate-500 space-y-1">
+                  <p>
+                    Comparables: {comparablesSel.length} · Método: {comparablesSel.length === 0 ? "MANUAL" : metodoCalculo}
+                  </p>
+                  <p>Factor total: {factorTotal.toFixed(4)} · Documentos: {documentos.length}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="border-2 border-primary/30 bg-gradient-to-r from-primary/20 to-secondary/20">
-              <div className="p-6 text-center">
-                <Check className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">¡Avalúo Completo!</h3>
-                <p className="text-sm text-slate-400 mb-4">
-                  Todos los datos han sido ingresados correctamente
-                </p>
-                <Button onClick={handleFinish} size="lg" className="bg-green-500 hover:bg-green-600">
-                  Finalizar y Generar Avalúo
-                </Button>
-              </div>
-            </Card>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-semibold"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-5 h-5 mr-2" />
+              )}
+              {isSubmitting ? "Creando avalúo y generando PDF..." : "Crear y Generar PDF"}
+            </Button>
           </div>
         )
 
@@ -962,210 +1225,127 @@ export default function CrearAvaluoPage() {
     }
   }
 
-  const canProceed = () => {
-    switch (currentStep) {
-      case 1:
-        return selectedCategory !== null
-      case 2:
-        return selectedOperation !== null
-      case 3:
-        return formData.direccion !== ""
-      case 4:
-        return formData.superficieTerreno !== "" && formData.valorUnitario !== ""
-      case 5:
-        return formData.anioConstruccion !== "" && formData.valorReposicion !== ""
-      case 6:
-        return true
-      case 7:
-        return true
-      case 8:
-        return true
-      case 9:
-        return true
-      case 10:
-        return true
-      case 11:
-        return true
-      default:
-        return false
-    }
-  }
-
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Crear Avalúo</h1>
-          <p className="text-sm sm:text-base text-slate-400 mt-1">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* HEADER */}
+        <div className="mb-6 sm:mb-8 space-y-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#FAB90E]">Crear Avalúo</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Paso {currentStep} de {steps.length}: {steps[currentStep - 1].name}
           </p>
         </div>
-        <Link href="/dashboard/avaluos">
-          <Button variant="outline" className="border-slate-700 text-white hover:bg-slate-800">
-            Cancelar
-          </Button>
-        </Link>
-      </div>
 
-      {/* Progress Steps */}
-      <div className="overflow-x-auto">
-        <div className="flex items-center gap-2 min-w-max pb-2">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium transition-all ${
-                  currentStep === step.id
-                    ? "bg-primary text-white"
-                    : currentStep > step.id
-                    ? "bg-green-500 text-white"
-                    : "bg-slate-700 text-slate-400"
-                }`}
-              >
-                {currentStep > step.id ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : step.icon}
+        {/* STEPPER */}
+        <div className="mb-6 sm:mb-8 overflow-x-auto">
+          <div className="flex items-center gap-1 sm:gap-2 min-w-max pb-2">
+            {steps.map((step, idx) => (
+              <div key={step.id} className="flex items-center">
+                <button
+                  onClick={() => {
+                    if (step.id < currentStep) setCurrentStep(step.id)
+                  }}
+                  disabled={step.id > currentStep}
+                  className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm transition-colors ${
+                    currentStep === step.id
+                      ? "bg-primary text-white"
+                      : step.id < currentStep
+                      ? "bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer"
+                      : "bg-slate-900 text-slate-600"
+                  }`}
+                >
+                  <span className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold ${
+                    currentStep === step.id
+                      ? "bg-white text-primary"
+                      : step.id < currentStep
+                      ? "bg-emerald-500 text-white"
+                      : "bg-slate-800 text-slate-600"
+                  }`}>
+                    {step.id < currentStep ? <Check className="w-3 h-3" /> : step.id}
+                  </span>
+                  <span className="hidden sm:inline">{step.name}</span>
+                </button>
+                {idx < steps.length - 1 && (
+                  <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-slate-700 mx-0.5" />
+                )}
               </div>
-              {index < steps.length - 1 && (
-                <div className={`w-8 sm:w-16 h-0.5 mx-1 ${currentStep > step.id ? "bg-green-500" : "bg-slate-700"}`} />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        {/* CONTENIDO DEL PASO */}
+        {renderStep()}
+
+        {/* NAVEGACIÓN */}
+        <div className="mt-6 sm:mt-8 flex items-center justify-between">
+          <Button
+            onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
+            disabled={currentStep === 1 || isSubmitting}
+            variant="outline"
+            className="border-slate-700 text-white hover:bg-slate-800"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Anterior
+          </Button>
+
+          {currentStep < steps.length ? (
+            <Button
+              onClick={() => setCurrentStep(Math.min(steps.length, currentStep + 1))}
+              disabled={!canProceed(currentStep) || isSubmitting}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Siguiente
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          ) : (
+            <div className="w-24" />
+          )}
         </div>
       </div>
 
-      {/* Step Content */}
-      {getStepContent()}
-
-      {/* Navigation */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-800">
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          disabled={currentStep === 1}
-          className="border-slate-700 text-white hover:bg-slate-800"
-        >
-          <ChevronLeft className="w-4 h-4 mr-2" />
-          Atrás
-        </Button>
-
-        {currentStep < steps.length ? (
-          <Button
-            onClick={handleNext}
-            disabled={!canProceed()}
-            className="bg-primary hover:bg-primary/90"
-          >
-            Siguiente
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        ) : (
-          <Button
-            onClick={handleFinish}
-            className="bg-green-500 hover:bg-green-600"
-          >
-            Finalizar Avalúo
-          </Button>
-        )}
-      </div>
-
-      {/* Modal de Comparable */}
-      <Dialog open={showComparableModal} onOpenChange={setShowComparableModal}>
-        <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-md">
+      {/* MODAL DE ÉXITO */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Agregar Comparable</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Ingresa los datos del comparable de mercado
-            </DialogDescription>
+            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Check className="w-8 h-8 text-emerald-400" />
+            </div>
+            <DialogTitle className="text-center text-2xl">¡Avalúo creado!</DialogTitle>
           </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="comp-codigo">Código</Label>
-              <Input
-                id="comp-codigo"
-                value={newComparable.codigo}
-                onChange={(e) => setNewComparable({ ...newComparable, codigo: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white"
-                placeholder="PROP-001"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="comp-direccion">Dirección</Label>
-              <Input
-                id="comp-direccion"
-                value={newComparable.direccion}
-                onChange={(e) => setNewComparable({ ...newComparable, direccion: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white"
-                placeholder="Calle, Número"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="comp-precio">Precio (USD)</Label>
-                <Input
-                  id="comp-precio"
-                  type="number"
-                  value={newComparable.precio}
-                  onChange={(e) => setNewComparable({ ...newComparable, precio: e.target.value })}
-                  className="bg-slate-800 border-slate-700 text-white"
-                  placeholder="85000"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="comp-superficie">Superficie (m²)</Label>
-                <Input
-                  id="comp-superficie"
-                  type="number"
-                  value={newComparable.superficie}
-                  onChange={(e) => setNewComparable({ ...newComparable, superficie: e.target.value })}
-                  className="bg-slate-800 border-slate-700 text-white"
-                  placeholder="85"
-                />
-              </div>
-            </div>
+          <div className="text-center space-y-2 py-4">
+            <p className="text-sm text-slate-400">El código del avalúo es</p>
+            <p className="text-2xl font-bold text-white">{createdCodigo}</p>
+            <p className="text-xs text-slate-500 mt-2">
+              Podés descargar el informe PDF profesional desde el detalle del avalúo.
+            </p>
           </div>
-
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
-              onClick={() => setShowComparableModal(false)}
-              className="border-slate-700 text-white hover:bg-slate-800"
+              onClick={() => setShowSuccessModal(false)}
+              className="border-slate-700 text-white hover:bg-slate-800 w-full sm:w-auto"
             >
-              Cancelar
+              Crear otro
             </Button>
-            <Button onClick={addComparable} className="bg-primary hover:bg-primary/90">
-              Agregar
+            <Button
+              onClick={() => {
+                setShowSuccessModal(false)
+                if (createdId) router.push(`/dashboard/avaluos/${createdId}`)
+              }}
+              className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+            >
+              Ver detalle
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Éxito */}
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="bg-slate-900 border-slate-800 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl">¡Avalúo Creado Exitosamente!</DialogTitle>
-          </DialogHeader>
-
-          <div className="text-center py-4">
-            <Check className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <p className="text-slate-400 mb-2">
-              El avalúo ha sido registrado con éxito
-            </p>
-            <p className="text-sm text-slate-500">
-              Código: <span className="font-mono font-medium text-white">AVAL-2026-{String(Math.floor(Math.random() * 900) + 100)}</span>
-            </p>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Link href="/dashboard/avaluos/mis-avaluos">
-              <Button variant="outline" className="border-slate-700 text-white hover:bg-slate-800 w-full">
-                Ver Mis Avalúos
-              </Button>
-            </Link>
-            <Link href="/dashboard/avaluos">
-              <Button className="bg-primary hover:bg-primary/90 w-full">
-                Crear Nuevo Avalúo
-              </Button>
-            </Link>
+            <Button
+              onClick={() => {
+                setShowSuccessModal(false)
+                router.push("/dashboard/avaluos")
+              }}
+              variant="ghost"
+              className="w-full sm:w-auto"
+            >
+              Ir al listado
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

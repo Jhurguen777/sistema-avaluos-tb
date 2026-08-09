@@ -30,6 +30,24 @@ export enum AuditAction {
   AVALUO_REJECTED = "AVALUO_REJECTED",
   AVALUO_SUBMITTED = "AVALUO_SUBMITTED",
 
+  // Inmuebles
+  INMUEBLE_CREATED = "INMUEBLE_CREATED",
+  INMUEBLE_UPDATED = "INMUEBLE_UPDATED",
+  INMUEBLE_DELETED = "INMUEBLE_DELETED",
+
+  // Comparables de mercado
+  COMPARABLE_CREATED = "COMPARABLE_CREATED",
+  COMPARABLE_UPDATED = "COMPARABLE_UPDATED",
+  COMPARABLE_DELETED = "COMPARABLE_DELETED",
+
+  // Documentos
+  DOCUMENTO_UPLOADED = "DOCUMENTO_UPLOADED",
+  DOCUMENTO_DELETED = "DOCUMENTO_DELETED",
+
+  // Radar / entorno
+  RADAR_GENERATED = "RADAR_GENERATED",
+  EQUIPAMIENTO_DELETED = "EQUIPAMIENTO_DELETED",
+
   // Sistema
   LOGIN_SUCCESS = "LOGIN_SUCCESS",
   LOGIN_FAILED = "LOGIN_FAILED",
@@ -338,8 +356,9 @@ export const auditService = {
     recordId?: string
     since?: Date
     until?: Date
+    search?: string
   }) {
-    const { skip = 0, take = 50, userId, action, tableName, recordId, since, until } = params
+    const { skip = 0, take = 50, userId, action, tableName, recordId, since, until, search } = params
 
     const where: any = {}
 
@@ -366,6 +385,15 @@ export const auditService = {
       }
       if (until) {
         where.createdAt.lte = until
+      }
+    }
+
+    if (search) {
+      where.user = {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
       }
     }
 

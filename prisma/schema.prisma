@@ -28,6 +28,7 @@ model User {
   password          String
   role              Role         @default(VALUADOR)
   isActive          Boolean      @default(true)
+  permisos          Json?
   emailVerified     DateTime?
   image             String?
   createdAt         DateTime     @default(now())
@@ -131,8 +132,8 @@ model Product {
   nombre                String
   categoryId            String
   operacion             OperationType
-  precioUsd             Float?
-  precioBob             Float?
+  precioUsd             Decimal?           @db.Decimal(15, 2)
+  precioBob             Decimal?           @db.Decimal(15, 2)
   superficieUtil        Float?
   superficieConstruida  Float?
   ambientes             Int?
@@ -140,6 +141,7 @@ model Product {
   banos                 Int?
   cocheras              Int?
   anoConstruccion       Int?
+  servicios             Json?              // { luz, agua, alcantarillado, gas, otros }
   descripcion           String?           @db.Text
   direccion             String?
   lat                   Float?
@@ -265,9 +267,11 @@ enum TipoVia {
 model Terreno {
   id                  String      @id @default(cuid())
   avaluoId            String      @unique
-  superficieM2        Float
-  valorUnitario       Float
-  valorTotal          Float
+  superficieM2        Float                  // alias de superficie útil (terreno total)
+  superficieUtil      Float?                 // terreno total (m²)
+  superficieConstruida Float?                // superficie edificada (m²)
+  valorUnitario       Decimal             @db.Decimal(15, 2)
+  valorTotal          Decimal             @db.Decimal(15, 2)
   morfologia          String?
   formaLote           String?
   frente              Float?
@@ -289,18 +293,17 @@ model Terreno {
 
 enum CategoriaConstructiva {
   LUJO
-  SEMILUJO
-  MEDIA
+  PRIMERA
+  ESTANDAR
   ECONOMICA
-  POPULAR
 }
 
 enum EstadoConservacion {
   EXCELENTE
-  MUY_BUENO
   BUENO
   REGULAR
   MALO
+  DEMOLICION
 }
 
 model Construccion {
@@ -312,11 +315,12 @@ model Construccion {
   anoConstruccion         Int
   vidaUtil                Int                 @default(50)
   superficieM2            Float
-  valorUnitario           Float
-  valorReposicion         Float
-  depreciacionAnual       Float
-  depreciacionTotal       Float
-  valorNeto               Float
+  valorUnitario           Decimal             @db.Decimal(15, 2)
+  valorUnitarioOverride   Decimal?            @db.Decimal(15, 2) // valor original editado por el valuador (null = automático)
+  valorReposicion         Decimal             @db.Decimal(15, 2)
+  depreciacionAnual       Decimal             @db.Decimal(15, 2)
+  depreciacionTotal       Decimal             @db.Decimal(15, 2)
+  valorNeto               Decimal             @db.Decimal(15, 2)
   descripcion             String?             @db.Text
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
@@ -333,13 +337,12 @@ model Construccion {
 model FactorHomologacion {
   id                      String      @id @default(cuid())
   avaluoId                String      @unique
-  factorUbicacion         Float       @default(1.0)
-  factorVia               Float       @default(1.0)
-  factorFrente            Float       @default(1.0)
-  factorEsquina           Float       @default(1.0)
-  factorMorfologico       Float       @default(1.0)
-  factorServicios         Float       @default(1.0)
-  factorEquipamiento      Float       @default(1.0)
+  factorUbicacion         Decimal             @default(1.0) @db.Decimal(8, 4)
+  factorVia               Decimal             @default(1.0) @db.Decimal(8, 4)
+  factorFrente            Decimal             @default(1.0) @db.Decimal(8, 4)
+  factorEsquina           Decimal             @default(1.0) @db.Decimal(8, 4)
+  factorMorfologico       Decimal             @default(1.0) @db.Decimal(8, 4)
+  factorServicios         Decimal             @default(1.0) @db.Decimal(8, 4)
   createdAt               DateTime    @default(now())
   updatedAt               DateTime    @updatedAt
 
@@ -349,18 +352,21 @@ model FactorHomologacion {
 }
 
 model ResultadoAvaluo {
-  id                      String      @id @default(cuid())
-  avaluoId                String      @unique
-  valorTerreno            Float
-  valorReposicion         Float
-  depreciacion            Float
-  valorConstruccion       Float
-  valorComercial         Float
-  valorVentaRapida        Float?
-  valorAlquiler           Float?
-  valorCapitalComercial   Float?
-  createdAt               DateTime    @default(now())
-  updatedAt               DateTime    @updatedAt
+  id                          String      @id @default(cuid())
+  avaluoId                    String      @unique
+  valorTerreno                Decimal             @db.Decimal(15, 2)
+  valorReposicion             Decimal             @db.Decimal(15, 2)
+  depreciacion                Decimal             @db.Decimal(15, 2)
+  valorConstruccion           Decimal             @db.Decimal(15, 2)
+  valorComercial             Decimal             @db.Decimal(15, 2)
+  valorVentaRapida            Decimal?            @db.Decimal(15, 2)
+  valorAlquiler               Decimal?            @db.Decimal(15, 2)
+  valorCapitalComercial       Decimal?            @db.Decimal(15, 2)
+  metodoCalculoTerreno        String?             // 'SIMPLE' | 'HOMOLOGEO' | 'MANUAL'
+  valorUnitarioTerrenoSimple  Decimal?            @db.Decimal(15, 2)
+  valorUnitarioTerrenoHomologo Decimal?           @db.Decimal(15, 2)
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
 
   avaluo                  Avaluo      @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
 
@@ -435,15 +441,22 @@ model ComparableVenta {
   id                String      @id @default(cuid())
   avaluoId          String
   direccion         String
-  precioOferta      Float
-  precioCierre      Float?
-  precioM2          Float
+  precioOferta      Decimal     @db.Decimal(15, 2)
+  precioCierre      Decimal?    @db.Decimal(15, 2)
+  precioM2          Decimal     @db.Decimal(15, 2)
   superficie        Float
   anoConstruccion   Int?
   estado            EstadoConservacion?
-  lat               Float
-  lng               Float
+  lat               Float?
+  lng               Float?
   distancia         Int?        // en metros
+  // Factores de homogeneización opcionales (cuando el valuador los obtiene en campo)
+  factorUbicacion         Decimal?   @db.Decimal(8, 4)
+  factorVia               Decimal?   @db.Decimal(8, 4)
+  factorFrente            Decimal?   @db.Decimal(8, 4)
+  factorEsquina           Decimal?   @db.Decimal(8, 4)
+  factorMorfologico       Decimal?   @db.Decimal(8, 4)
+  factorServicios         Decimal?   @db.Decimal(8, 4)
   observaciones     String?     @db.Text
   createdAt         DateTime    @default(now())
 
@@ -456,15 +469,22 @@ model ComparableAlquiler {
   id                String      @id @default(cuid())
   avaluoId          String
   direccion         String
-  precioOferta      Float
-  precioCierre      Float?
-  precioM2          Float
+  precioOferta      Decimal     @db.Decimal(15, 2)
+  precioCierre      Decimal?    @db.Decimal(15, 2)
+  precioM2          Decimal     @db.Decimal(15, 2)
   superficie        Float
   anoConstruccion   Int?
   estado            EstadoConservacion?
-  lat               Float
-  lng               Float
+  lat               Float?
+  lng               Float?
   distancia         Int?        // en metros
+  // Factores de homogeneización opcionales (cuando el valuador los obtiene en campo)
+  factorUbicacion         Decimal?   @db.Decimal(8, 4)
+  factorVia               Decimal?   @db.Decimal(8, 4)
+  factorFrente            Decimal?   @db.Decimal(8, 4)
+  factorEsquina           Decimal?   @db.Decimal(8, 4)
+  factorMorfologico       Decimal?   @db.Decimal(8, 4)
+  factorServicios         Decimal?   @db.Decimal(8, 4)
   observaciones     String?     @db.Text
   createdAt         DateTime    @default(now())
 
@@ -502,4 +522,37 @@ model Documento {
   avaluo          Avaluo          @relation(fields: [avaluoId], references: [id], onDelete: Cascade)
 
   @@map("documentos")
+}
+
+// ============================================
+// CONFIGURACIÓN: VALORES DE REPOSICIÓN (editable por admin)
+// ============================================
+
+model ValorReposicion {
+  id          String    @id @default(cuid())
+  categoria   String    // LUJO, PRIMERA, ESTANDAR, ECONOMICA
+  estado      String    // EXCELENTE, BUENO, REGULAR, MALO, DEMOLICION
+  min         Decimal?  @db.Decimal(10, 2) // null para DEMOLICION
+  max         Decimal?  @db.Decimal(10, 2) // null para DEMOLICION
+  costo       Decimal?  @db.Decimal(10, 2) // solo para DEMOLICION
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([categoria, estado])
+  @@map("valores_reposicion")
+}
+
+// ============================================
+// CONFIGURACIÓN: PARÁMETROS DE AVALÚO (editable por admin)
+// ============================================
+
+model ParametroAvaluo {
+  id          String   @id @default(cuid())
+  clave       String   @unique // ej: "descuento.venta_rapida"
+  valor       String   // stored as string, parsed by type
+  etiqueta    String   // human-readable
+  descripcion String?  @db.Text
+  grupo       String   // "Descuentos", "Alquiler", "Homologación"
+  updatedAt   DateTime @updatedAt
+
+  @@map("parametros_avaluo")
 }

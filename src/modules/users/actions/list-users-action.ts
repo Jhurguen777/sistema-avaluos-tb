@@ -6,6 +6,7 @@
 "use server"
 
 import { auth } from "@/shared/auth/nextauth"
+import { ROLES_CONFIG } from "@/config/roles"
 import { userService } from "../services/user-service"
 import { listUsersValidator } from "../validators/user-validator"
 import type { ListUsersInput } from "../validators/user-validator"
@@ -18,7 +19,7 @@ export async function listUsersAction(filters?: ListUsersInput) {
       return { success: false, error: "No autenticado" }
     }
 
-    if (session.user.role !== "ADMIN") {
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? "", "usuarios.read")) {
       return { success: false, error: "No autorizado. Solo administradores pueden ver usuarios" }
     }
 

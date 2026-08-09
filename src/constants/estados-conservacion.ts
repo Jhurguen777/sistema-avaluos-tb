@@ -1,32 +1,32 @@
 /**
  * Constantes de Estados de Conservación
- * Enumeración de estados de conservación de construcciones
+ * Enumeración de estados de conservación de construcciones (basado en tabla de valores de reposición)
  */
 
 import { z } from 'zod'
 
 export const ESTADOS_CONSERVACION = {
   EXCELENTE: 'EXCELENTE',
-  MUY_BUENO: 'MUY_BUENO',
   BUENO: 'BUENO',
   REGULAR: 'REGULAR',
-  MALO: 'MALO'
+  MALO: 'MALO',
+  DEMOLICION: 'DEMOLICION',
 } as const
 
 export const ESTADO_CONSERVACION_LABELS: Record<keyof typeof ESTADOS_CONSERVACION, string> = {
   EXCELENTE: 'Excelente',
-  MUY_BUENO: 'Muy Bueno',
   BUENO: 'Bueno',
   REGULAR: 'Regular',
-  MALO: 'Malo'
+  MALO: 'Malo',
+  DEMOLICION: 'Demolición',
 }
 
 export const ESTADO_CONSERVACION_COLORES: Record<keyof typeof ESTADOS_CONSERVACION, string> = {
   EXCELENTE: 'green',
-  MUY_BUENO: 'blue',
   BUENO: 'cyan',
   REGULAR: 'yellow',
-  MALO: 'red'
+  MALO: 'orange',
+  DEMOLICION: 'red',
 }
 
 export const EstadoConservacion = z.enum(Object.values(ESTADOS_CONSERVACION) as [string, ...string[]])

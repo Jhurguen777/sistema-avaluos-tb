@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { isEmailBlocked, recordEmailAttempt } from "@/shared/security/rate-limiter"
 import { loginAttemptRepository } from "@/modules/auth/repositories/login-attempt-repository"
+import { getPermisosEfectivos, type PermisosUsuario } from "@/config/modulos-permisos"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
@@ -106,6 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          permisos: getPermisosEfectivos(user.permisos as PermisosUsuario | null, user.role),
         }
       },
     }),
@@ -115,6 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.role = (user as any).role
         token.id = user.id!
+        token.permisos = (user as any).permisos
       }
       return token
     },
@@ -122,6 +125,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id = token.id as string
         session.user.role = token.role as any
+        session.user.permisos = token.permisos as PermisosUsuario
       }
       return session
     },

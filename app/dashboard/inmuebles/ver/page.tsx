@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MapPin, Home as HomeIcon, Building, Loader2, ChevronDown } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import Link from "next/link"
 import { MapaLeaflet } from "@/components/mapa-leaflet"
+import { listInmueblesAction } from "@/modules/inmuebles/actions"
+import { toast } from "@/components/ui/use-toast"
+import type { InmuebleDTO } from "@/modules/inmuebles/types/inmueble.types"
 
 type OperationType = "VENTA" | "ALQUILER" | "ANTICRETICO"
 
@@ -19,6 +22,7 @@ interface Property {
   lat: number
   lng: number
   direccion?: string
+  categoria?: string
 }
 
 export default function VerInmueblesPage() {
@@ -27,82 +31,36 @@ export default function VerInmueblesPage() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [filtroOperacion, setFiltroOperacion] = useState<string>("todos")
 
-  // Simular carga de propiedades
+  // Cargar propiedades desde la BD (solo las que tienen coordenadas)
   useEffect(() => {
-    const mockProperties: Property[] = [
-      {
-        id: "1",
-        codigoInmueble: "PROP001",
-        nombre: "Departamento Centro",
-        operacion: "VENTA",
-        precioUsd: 85000,
-        superficieUtil: 85,
-        lat: -17.3895,
-        lng: -66.1569,
-        direccion: "Calle Sucre, Centro"
-      },
-      {
-        id: "2",
-        codigoInmueble: "PROP002",
-        nombre: "Casa Zona Sur",
-        operacion: "ALQUILER",
-        precioUsd: 450,
-        superficieUtil: 150,
-        lat: -17.405,
-        lng: -66.14,
-        direccion: "Av. Costa Verde, Zona Sur"
-      },
-      {
-        id: "3",
-        codigoInmueble: "PROP003",
-        nombre: "Local Comercial",
-        operacion: "VENTA",
-        precioUsd: 120000,
-        superficieUtil: 80,
-        lat: -17.375,
-        lng: -66.15,
-        direccion: "Calle Florida, Centro Comercial"
-      },
-      {
-        id: "4",
-        codigoInmueble: "PROP004",
-        nombre: "Penthouse Norte",
-        operacion: "ANTICRETICO",
-        precioUsd: 150000,
-        superficieUtil: 180,
-        lat: -17.395,
-        lng: -66.145,
-        direccion: "Av. Principal, Zona Norte"
-      },
-      {
-        id: "5",
-        codigoInmueble: "PROP005",
-        nombre: "Oficina Ejecutiva",
-        operacion: "VENTA",
-        precioUsd: 65000,
-        superficieUtil: 60,
-        lat: -17.383,
-        lng: -66.160,
-        direccion: "Calle Bolivar, Centro"
-      },
-      {
-        id: "6",
-        codigoInmueble: "PROP006",
-        nombre: "Casa Familia",
-        operacion: "ALQUILER",
-        precioUsd: 550,
-        superficieUtil: 200,
-        lat: -17.410,
-        lng: -66.135,
-        direccion: "Calle 3, Zona Este"
+    async function loadProperties() {
+      try {
+        const result = await listInmueblesAction({ page: 1, limit: 5000 })
+        if (result.success && result.data) {
+          const mapeadas: Property[] = (result.data.inmuebles as InmuebleDTO[])
+            .filter((p) => p.lat != null && p.lng != null)
+            .map((p) => ({
+              id: p.id,
+              codigoInmueble: p.codigoInmueble,
+              nombre: p.nombre,
+              operacion: p.operacion as OperationType,
+              precioUsd: p.precioUsd ?? undefined,
+              superficieUtil: p.superficieUtil ?? undefined,
+              lat: p.lat as number,
+              lng: p.lng as number,
+              direccion: p.direccion ?? undefined,
+              categoria: p.categoria,
+            }))
+          setProperties(mapeadas)
+        }
+      } catch (error) {
+        console.error("Error cargando propiedades:", error)
+        toast.error("Error al cargar los inmuebles del mapa")
+      } finally {
+        setLoading(false)
       }
-    ]
-
-    // Simular carga con delay
-    setTimeout(() => {
-      setProperties(mockProperties)
-      setLoading(false)
-    }, 1500)
+    }
+    loadProperties()
   }, [])
 
   // Filtrar propiedades por operación
@@ -137,6 +95,7 @@ export default function VerInmueblesPage() {
   }
 
   const handlePropertySelect = (property: Property) => {
+    if (property.id === "_map_click") return // ignorar clic vacío del mapa
     setSelectedProperty(property)
     // Scroll al detalle
     document.getElementById("detalle-propiedad")?.scrollIntoView({ behavior: "smooth" })
@@ -223,11 +182,12 @@ export default function VerInmueblesPage() {
             ) : (
               <MapaLeaflet
                 properties={filteredProperties}
-                center={[-17.3895, -66.1569]}
-                zoom={14}
+                center={[-17.5, -65.0]}
+                zoom={6}
                 selectable={true}
                 onPropertySelect={handlePropertySelect}
                 selectedProperty={selectedProperty}
+                cluster
               />
             )}
           </Card>
@@ -285,7 +245,7 @@ export default function VerInmueblesPage() {
                       )}
                       {property.precioUsd && (
                         <span className="text-green-400 font-medium">
-                          ${property.precioUsd.toLocaleString()}
+                          US$ {property.precioUsd.toLocaleString("es-BO")}
                         </span>
                       )}
                     </div>
@@ -328,7 +288,7 @@ export default function VerInmueblesPage() {
               <div>
                 <p className="text-xs text-slate-500 mb-1">Precio</p>
                 <p className="text-sm font-medium text-green-400">
-                  ${selectedProperty.precioUsd?.toLocaleString()}
+                  US$ {selectedProperty.precioUsd?.toLocaleString("es-BO")}
                 </p>
               </div>
               {selectedProperty.direccion && (
@@ -346,7 +306,9 @@ export default function VerInmueblesPage() {
               <div>
                 <p className="text-xs text-slate-500 mb-1">Coordenadas</p>
                 <p className="text-sm font-medium text-white">
-                  {selectedProperty.lat.toFixed(4)}, {selectedProperty.lng.toFixed(4)}
+                  {selectedProperty.lat != null && selectedProperty.lng != null
+                    ? `${selectedProperty.lat.toFixed(4)}, ${selectedProperty.lng.toFixed(4)}`
+                    : "—"}
                 </p>
               </div>
             </div>

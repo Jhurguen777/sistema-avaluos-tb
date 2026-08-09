@@ -6,6 +6,7 @@
 "use server"
 
 import { auth } from "@/shared/auth/nextauth"
+import { ROLES_CONFIG } from "@/config/roles"
 import { userService } from "../services/user-service"
 import { createUserValidator } from "../validators/user-validator"
 import type { CreateUserInput } from "../validators/user-validator"
@@ -19,7 +20,7 @@ export async function createUserAction(data: CreateUserInput) {
       return { success: false, error: "No autenticado" }
     }
 
-    if (session.user.role !== "ADMIN") {
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? "", "usuarios.create")) {
       return { success: false, error: "No autorizado. Solo administradores pueden crear usuarios" }
     }
 

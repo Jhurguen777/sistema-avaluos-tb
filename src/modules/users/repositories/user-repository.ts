@@ -110,15 +110,6 @@ export const userRepository = {
   },
 
   /**
-   * Eliminar usuario (hard delete - solo admin)
-   */
-  async delete(id: string): Promise<any> {
-    return await prisma.user.delete({
-      where: { id }
-    })
-  },
-
-  /**
    * Listar usuarios con filtros
    */
   async list(params: {

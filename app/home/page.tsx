@@ -81,7 +81,7 @@ export default async function HomePage() {
                   {/* Logo */}
                   <Image
                     src="/recurso2analityc2.png"
-                    alt="GeoPricer Avalúos"
+                    alt="Alfa Analitycs"
                     width={40}
                     height={40}
                     className="relative w-10 h-10 object-contain"
@@ -92,9 +92,9 @@ export default async function HomePage() {
               {/* Nombre de la app */}
               <div className="hidden sm:block">
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
-                  GeoPricer
+                  Alfa Analitycs
                 </h1>
-                <p className="text-xs text-slate-400">Sistema de Avalúos</p>
+                <p className="text-xs text-slate-400">Sistema de gestionamiento de Avalúos</p>
               </div>
             </div>
 
@@ -165,27 +165,12 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              {/* Botones de acción rápida */}
-              <div className="flex flex-wrap items-start gap-3">
-                <Link href="/dashboard/avaluos/crear">
-                  <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-amber-500/30 transition-all duration-300 transform hover:scale-105">
-                    <FileText className="w-5 h-5" />
-                    <span>Nuevo Avalúo</span>
-                  </button>
-                </Link>
-                <Link href="/dashboard/inmuebles/ver">
-                  <button className="flex items-center gap-2 px-6 py-3 bg-slate-800/50 text-white font-semibold rounded-xl border border-slate-700 hover:bg-slate-700/50 transition-all duration-300">
-                    <Map className="w-5 h-5" />
-                    <span>Ver Mapa</span>
-                  </button>
-                </Link>
-              </div>
 
               {/* Grid de Iconos - Información */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-8 border-t border-slate-800 text-slate-400 text-sm">
                 <div className="flex items-center gap-2">
                   <Home className="w-5 h-5 text-amber-400 shrink-0" />
-                  <span>+1,000 Propiedades</span>
+                  <span>+10,000 Propiedades</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Search className="w-5 h-5 text-amber-400 shrink-0" />
@@ -216,10 +201,10 @@ export default async function HomePage() {
       {/* Spacer para empujar el footer con más espacio */}
       <div className="h-16 mt-8" />
 
-      {/* Footer Completo */}
+      {/* Footer Compacto */}
       <footer className="bg-slate-950 border-t border-slate-800/50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
             {/* Columna 1: Logo y Descripción */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -232,7 +217,7 @@ export default async function HomePage() {
                   >
                     <Image
                       src="/recurso2analityc2.png"
-                      alt="GeoPricer"
+                      alt="Alfa Analitycs"
                       width={32}
                       height={32}
                       className="relative w-8 h-8 object-contain"
@@ -240,116 +225,65 @@ export default async function HomePage() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">GeoPricer</h3>
+                  <h3 className="text-lg font-bold text-white">Alfa Analitycs</h3>
                   <p className="text-xs text-slate-400">Avalúos Pro</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-slate-400 leading-relaxed max-w-md">
                 Sistema profesional de avalúos inmobiliarios para Bolivia. Tecnología de punta para valoraciones precisas.
               </p>
             </div>
 
-            {/* Columna 2: Módulos */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-white uppercase tracking-wider">Módulos</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/dashboard/inmuebles" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Inmuebles
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboard/avaluos" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Avalúos
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboard/reportes" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Reportes
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboard/usuarios" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Usuarios
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Columna 3: Ayuda */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-white uppercase tracking-wider">Ayuda</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Preguntas Frecuentes
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Soporte Técnico
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Guías de Uso
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-slate-400 hover:text-primary transition-colors">
-                    Política de Privacidad
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Columna 4: Contacto */}
+            {/* Columna 2: Contacto horizontal */}
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Contacto</h4>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
+              <div className="flex flex-wrap items-start gap-x-6 gap-y-4">
+                {/* Email */}
+                <div className="flex items-start gap-2.5">
                   <Mail className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm text-slate-400">Email</p>
-                    <p className="text-sm text-white">contacto@geopricer.bo</p>
+                    <p className="text-[11px] text-slate-400">Email</p>
+                    <p className="text-sm text-white">contacto@alfanalitycs.bo</p>
                   </div>
-                </li>
-                <li className="flex items-start gap-3">
+                </div>
+                {/* Teléfono */}
+                <div className="flex items-start gap-2.5">
                   <Phone className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm text-slate-400">Teléfono</p>
-                    <p className="text-sm text-white">+591 3 1234567</p>
+                    <p className="text-[11px] text-slate-400">Teléfono</p>
+                    <p className="text-sm text-white">+591 77490451</p>
                   </div>
-                </li>
-                <li className="flex items-start gap-3">
+                </div>
+                {/* Ubicación */}
+                <div className="flex items-start gap-2.5">
                   <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm text-slate-400">Ubicación</p>
-                    <p className="text-sm text-white">Bolivia</p>
+                    <p className="text-[11px] text-slate-400">Ubicación</p>
+                    <p className="text-sm text-white">Cochabamba-Bolivia</p>
                   </div>
-                </li>
-              </ul>
+                </div>
 
-              {/* Redes Sociales */}
-              <div className="flex items-center gap-3 pt-2">
-                <a href="#" className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-all" title="Sitio Web">
-                  <Globe className="w-5 h-5" />
-                </a>
-                <a href="#" className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-all" title="Chat">
-                  <MessageCircle className="w-5 h-5" />
-                </a>
+                {/* Iconos de página web / chat — al final de la fila */}
+                <div className="flex items-center gap-2 lg:ml-auto self-center">
+                  <a href="#" className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-all" title="Sitio Web">
+                    <Globe className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-all" title="Chat">
+                    <MessageCircle className="w-5 h-5" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Barra separadora */}
-          <div className="mt-12 pt-8 border-t border-slate-800">
+          <div className="mt-8 pt-6 border-t border-slate-800">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-sm text-slate-500">
                 © 2026 ACM Analytics 365Soft. Todos los derechos reservados.
               </p>
               <p className="text-sm text-slate-500">
-                Sistema de Avalúos Inmobiliarios — Bolivia
+                Hecho por 365soft — Bolivia
               </p>
             </div>
           </div>

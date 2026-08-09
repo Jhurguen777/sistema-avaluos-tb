@@ -1,9 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/components/ui/use-toast"
+import { listAvaluosAction } from "@/modules/avaluos/actions/avaluo-action"
 import {
   FileText,
   Download,
@@ -14,7 +17,8 @@ import {
   Building2,
   Eye,
   Filter,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react"
 
 type AvaluoEstado = "BORRADOR" | "EN_REVISION" | "APROBADO" | "RECHAZADO"
@@ -32,31 +36,6 @@ interface ReporteAvaluo {
   valorTotal?: number
 }
 
-const mockReportes: ReporteAvaluo[] = [
-  {
-    id: "1",
-    codigo: "AVAL-2026-001",
-    tipo: "COMERCIAL",
-    estado: "APROBADO",
-    fechaElaboracion: "2026-01-15",
-    propiedadNombre: "Departamento Centro",
-    valorTerreno: 35000,
-    valorConstruccion: 50000,
-    valorTotal: 85000
-  },
-  {
-    id: "2",
-    codigo: "AVAL-2026-002",
-    tipo: "ALQUILER",
-    estado: "EN_REVISION",
-    fechaElaboracion: "2026-02-20",
-    propiedadNombre: "Casa Zona Norte",
-    valorTerreno: 80000,
-    valorConstruccion: 60000,
-    valorTotal: 140000
-  }
-]
-
 const estados: { value: AvaluoEstado; label: string; color: string }[] = [
   { value: "BORRADOR", label: "Borrador", color: "text-slate-400 bg-slate-400/10 border-slate-400/30" },
   { value: "EN_REVISION", label: "En Revisión", color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/30" },
@@ -72,10 +51,45 @@ const tipos: { value: AvaluoTipo; label: string }[] = [
 ]
 
 export default function ReportesPage() {
-  const [reportes, setReportes] = useState<ReporteAvaluo[]>(mockReportes)
+  const [reportes, setReportes] = useState<ReporteAvaluo[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filtroEstado, setFiltroEstado] = useState<string>("todos")
   const [filtroTipo, setFiltroTipo] = useState<string>("todos")
+
+  /** Cargar avalúos reales desde la BD */
+  const loadReportes = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const result = await listAvaluosAction({ page: 1, limit: 100 })
+      if (result.success && result.data) {
+        setReportes(
+          result.data.avaluos.map((a) => ({
+            id: a.id,
+            codigo: a.codigo,
+            tipo: a.tipo,
+            estado: a.estado,
+            fechaElaboracion: (a.fechaElaboracion ?? a.createdAt).toISOString(),
+            propiedadNombre: a.nombreInmueble || a.codigoInmueble,
+            valorTerreno: a.valorTerreno ?? undefined,
+            valorConstruccion: a.valorConstruccion ?? undefined,
+            valorTotal: a.valorComercial ?? undefined,
+          })),
+        )
+      } else if (!result.success) {
+        toast.error("Error al cargar reportes", result.error)
+      }
+    } catch (error) {
+      console.error("Error cargando reportes:", error)
+      toast.error("Error al cargar los reportes")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadReportes()
+  }, [loadReportes])
 
   // Filtrar reportes
   const filteredReportes = reportes.filter(reporte => {
@@ -102,6 +116,37 @@ export default function ReportesPage() {
     return tipos.find(t => t.value === tipo)?.label || tipo
   }
 
+  /** Exportar los reportes filtrados a CSV */
+  const exportarCSV = () => {
+    if (filteredReportes.length === 0) {
+      toast.error("No hay reportes para exportar")
+      return
+    }
+    const encabezados = [
+      "Código", "Propiedad", "Tipo", "Estado", "Fecha",
+      "Valor Terreno", "Valor Construcción", "Valor Total",
+    ]
+    const filas = filteredReportes.map((r) => [
+      r.codigo,
+      `"${r.propiedadNombre.replace(/"/g, '""')}"`,
+      getTipoLabel(r.tipo),
+      getEstadoInfo(r.estado).label,
+      r.fechaElaboracion ? new Date(r.fechaElaboracion).toLocaleDateString() : "",
+      r.valorTerreno ?? "",
+      r.valorConstruccion ?? "",
+      r.valorTotal ?? "",
+    ].join(","))
+    const csv = [encabezados.join(","), ...filas].join("\n")
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `reportes-avaluos-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Se exportaron ${filteredReportes.length} reporte(s)`)
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Header */}
@@ -112,7 +157,10 @@ export default function ReportesPage() {
             Avalúos generados y sus resultados
           </p>
         </div>
-        <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+        <Button
+          onClick={exportarCSV}
+          className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+        >
           <Download className="w-4 h-4 mr-2" />
           Exportar Todo
         </Button>
@@ -235,7 +283,12 @@ export default function ReportesPage() {
 
         {/* Filas */}
         <div className="divide-y divide-slate-800">
-          {filteredReportes.length === 0 ? (
+          {isLoading ? (
+            <div className="p-8 flex items-center justify-center gap-2 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Cargando reportes...</span>
+            </div>
+          ) : filteredReportes.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
               {searchTerm || filtroEstado !== "todos" || filtroTipo !== "todos"
                 ? "No se encontraron reportes con los filtros aplicados"
@@ -298,19 +351,21 @@ export default function ReportesPage() {
 
                   {/* Acciones */}
                   <div className="flex items-center gap-2">
-                    <button
+                    <Link
+                      href={`/dashboard/avaluos/${reporte.id}`}
                       className="p-2 text-slate-400 hover:text-blue-400 transition-colors"
                       title="Ver detalle"
                     >
                       <Eye className="w-4 h-4" />
-                    </button>
+                    </Link>
                     {reporte.estado === "APROBADO" && (
-                      <button
+                      <Link
+                        href={`/dashboard/avaluos/${reporte.id}`}
                         className="p-2 text-slate-400 hover:text-green-400 transition-colors"
                         title="Descargar PDF"
                       >
                         <Download className="w-4 h-4" />
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </div>

@@ -18,7 +18,10 @@ import {
   ChevronRight,
   Map,
   PlusCircle,
-  List
+  List,
+  History,
+  Table2,
+  SlidersHorizontal
 } from "lucide-react"
 import { useState } from "react"
 
@@ -27,7 +30,7 @@ interface SidebarProps {
   onCloseMobile?: () => void
 }
 
-// Menú principal - se filtrará según rol
+// Menú principal - se filtrará según permisos del usuario
 const allMenuItems = [
   {
     id: "dashboard",
@@ -35,13 +38,15 @@ const allMenuItems = [
     href: "/dashboard",
     icon: LayoutDashboard,
     description: "Vista general del sistema",
-    roles: ["ADMIN"] // Solo visible para admin
+    modulo: null, // Solo admin
+    roles: ["ADMIN"],
   },
   {
     id: "inmuebles",
     title: "Inmuebles",
     icon: Building2,
     description: "Gestión de propiedades",
+    modulo: "inmuebles",
     subItems: [
       {
         title: "Ver Inmuebles",
@@ -62,6 +67,7 @@ const allMenuItems = [
     title: "Avalúos",
     icon: FileText,
     description: "Avalúos y valoraciones",
+    modulo: "avaluos",
     subItems: [
       {
         title: "Crear Avalúo",
@@ -89,14 +95,40 @@ const allMenuItems = [
     href: "/dashboard/usuarios",
     icon: Users,
     description: "Administración de usuarios",
-    roles: ["ADMIN"] // Solo visible para admin
+    modulo: "usuarios",
   },
   {
     id: "reportes",
     title: "Reportes",
     href: "/dashboard/reportes",
     icon: TrendingUp,
-    description: "Estadísticas y análisis"
+    description: "Estadísticas y análisis",
+    modulo: "reportes",
+  },
+  {
+    id: "valores-reposicion",
+    title: "Valores de Reposición",
+    href: "/dashboard/valores-reposicion",
+    icon: Table2,
+    description: "Tabla de valores unitarios de construcción",
+    modulo: "configuracion",
+  },
+  {
+    id: "parametros",
+    title: "Parámetros de Avalúo",
+    href: "/dashboard/parametros",
+    icon: SlidersHorizontal,
+    description: "Descuentos, alquiler y homologación",
+    modulo: "configuracion",
+    roles: ["ADMIN"],
+  },
+  {
+    id: "auditoria",
+    title: "Auditoría",
+    href: "/dashboard/auditoria",
+    icon: History,
+    description: "Registro de actividad del sistema",
+    modulo: "auditoria",
   }
 ]
 
@@ -106,13 +138,26 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
   const [openMenus, setOpenMenus] = useState<Set<string>>(new Set())
 
   const userRole = session?.user?.role || "VALUADOR"
+  const userPermisos = session?.user?.permisos
 
-  // Filtrar menú según rol
+  /** Verifica si el usuario tiene acceso a un módulo (permiso read) */
+  const tieneAccesoModulo = (modulo: string | null | undefined): boolean => {
+    // Items sin módulo asignado (ej. Dashboard) se filtran por rol
+    if (!modulo) return true
+    // Si hay permisos individuales en sesión, usarlos
+    if (userPermisos && userPermisos[modulo]) {
+      return userPermisos[modulo].read === true
+    }
+    // Fallback: si no hay permisos en sesión, permitir (los Server Actions validan igualmente)
+    return true
+  }
+
+  // Filtrar menú según permisos y rol
   const menuItems = allMenuItems.filter(item => {
-    // Si no tiene restricción de roles, mostrar
-    if (!item.roles) return true
-    // Si tiene restricción, verificar si el rol está incluido
-    return item.roles.includes(userRole as any)
+    // Si tiene restricción de roles explícita, verificar primero
+    if (item.roles && !item.roles.includes(userRole as any)) return false
+    // Verificar permiso del módulo
+    return tieneAccesoModulo(item.modulo)
   })
 
   const toggleMenu = (menuId: string) => {
@@ -344,24 +389,6 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
 
         {/* Footer - Empujado hacia abajo */}
         <div className="mt-auto pb-6 px-4 border-t border-slate-800/60 space-y-1.5 shrink-0">
-          <Link
-            href="/dashboard/configuracion"
-            onClick={() => {
-              if (window.innerWidth < 768) {
-                onCloseMobile?.()
-              }
-            }}
-          >
-            <button className="w-full flex items-center gap-3 py-2 px-3.5 rounded-lg md:hover:bg-slate-800/30 transition-all duration-200 ease-in-out group">
-              <div className="p-1.5 rounded-md text-slate-400 md:group-hover:text-slate-200 transition-colors duration-200">
-                <Settings className="w-4.5 h-4.5" />
-              </div>
-              <span className="text-sm font-medium text-slate-400 md:group-hover:text-slate-200 transition-colors duration-200">
-                Configuración
-              </span>
-            </button>
-          </Link>
-
           <SignOutButton isCollapsed={false} />
         </div>
       </aside>

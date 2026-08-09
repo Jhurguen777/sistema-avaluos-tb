@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,97 +17,63 @@ import {
   Building2,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "@/components/ui/use-toast"
+import { listAvaluosAction } from "@/modules/avaluos/actions"
+import type { AvaluoDTO } from "@/modules/avaluos/types/avaluo.types"
 
 type AvaluoEstado = "BORRADOR" | "EN_REVISION" | "APROBADO" | "RECHAZADO"
 type AvaluoTipo = "COMERCIAL" | "ALQUILER" | "VENTA_RAPIDA" | "CAPITAL_COMERCIAL"
-
-interface Avaluo {
-  id: string
-  codigo: string
-  tipo: AvaluoTipo
-  estado: AvaluoEstado
-  fechaElaboracion: string
-  solicitante?: string
-  propietario?: string
-  propiedadNombre: string
-  propiedadDireccion: string
-  creadoPor: string
-  creadoPorNombre: string
-}
-
-const mockAvaluos: Avaluo[] = [
-  {
-    id: "1",
-    codigo: "AVAL-2026-001",
-    tipo: "COMERCIAL",
-    estado: "APROBADO",
-    fechaElaboracion: "2026-01-15",
-    solicitante: "Juan Pérez",
-    propietario: "María González",
-    propiedadNombre: "Departamento Centro",
-    propiedadDireccion: "Calle Sucre 123",
-    creadoPor: "user1",
-    creadoPorNombre: "Arq. Carlos López"
-  },
-  {
-    id: "2",
-    codigo: "AVAL-2026-002",
-    tipo: "ALQUILER",
-    estado: "EN_REVISION",
-    fechaElaboracion: "2026-02-20",
-    solicitante: "Pedro Silva",
-    propietario: "Inmobiliaria Sur",
-    propiedadNombre: "Casa Zona Norte",
-    propiedadDireccion: "Av. Principal 456",
-    creadoPor: "user2",
-    creadoPorNombre: "Ing. Ana Martínez"
-  },
-  {
-    id: "3",
-    codigo: "AVAL-2026-003",
-    tipo: "COMERCIAL",
-    estado: "BORRADOR",
-    fechaElaboracion: "2026-03-10",
-    solicitante: "Luis Torres",
-    propiedadNombre: "Local Comercial",
-    propiedadDireccion: "Calle Florida 789",
-    creadoPor: "user1",
-    creadoPorNombre: "Arq. Carlos López"
-  }
-]
 
 const estados: { value: AvaluoEstado; label: string; color: string }[] = [
   { value: "BORRADOR", label: "Borrador", color: "text-slate-400 bg-slate-400/10 border-slate-400/30" },
   { value: "EN_REVISION", label: "En Revisión", color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/30" },
   { value: "APROBADO", label: "Aprobado", color: "text-green-400 bg-green-400/10 border-green-400/30" },
-  { value: "RECHAZADO", label: "Rechazado", color: "text-red-400 bg-red-400/10 border-red-400/30" }
+  { value: "RECHAZADO", label: "Rechazado", color: "text-red-400 bg-red-400/10 border-red-400/30" },
 ]
 
 const tipos: { value: AvaluoTipo; label: string }[] = [
   { value: "COMERCIAL", label: "Comercial" },
   { value: "ALQUILER", label: "Alquiler" },
   { value: "VENTA_RAPIDA", label: "Venta Rápida" },
-  { value: "CAPITAL_COMERCIAL", label: "Capital Comercial" }
+  { value: "CAPITAL_COMERCIAL", label: "Capital Comercial" },
 ]
 
 export default function AvaluosPage() {
   const { data: session } = useSession()
-  const [avaluos, setAvaluos] = useState<Avaluo[]>(mockAvaluos)
+  const [avaluos, setAvaluos] = useState<AvaluoDTO[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filtroEstado, setFiltroEstado] = useState<string>("todos")
 
   const currentUserId = session?.user?.id || ""
 
+  useEffect(() => {
+    async function load() {
+      try {
+        const result = await listAvaluosAction({ page: 1, limit: 100 })
+        if (result.success && result.data) setAvaluos(result.data.avaluos)
+      } catch (error) {
+        console.error("Error cargando avalúos:", error)
+        toast.error("Error al cargar los avalúos")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   // Filtrar avalúos
-  const filteredAvaluos = avaluos.filter(avaluo => {
+  const filteredAvaluos = avaluos.filter((avaluo) => {
+    const q = searchTerm.toLowerCase()
     const matchesSearch =
-      avaluo.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      avaluo.propiedadNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      avaluo.propiedadDireccion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      avaluo.solicitante?.toLowerCase().includes(searchTerm.toLowerCase())
+      avaluo.codigo.toLowerCase().includes(q) ||
+      avaluo.nombreInmueble.toLowerCase().includes(q) ||
+      (avaluo.direccion ?? "").toLowerCase().includes(q) ||
+      (avaluo.solicitante ?? "").toLowerCase().includes(q)
 
     const matchesEstado = filtroEstado === "todos" || avaluo.estado === filtroEstado
 
@@ -115,11 +81,11 @@ export default function AvaluosPage() {
   })
 
   const getEstadoInfo = (estado: AvaluoEstado) => {
-    return estados.find(e => e.value === estado) || estados[0]
+    return estados.find((e) => e.value === estado) || estados[0]
   }
 
   const getTipoLabel = (tipo: AvaluoTipo) => {
-    return tipos.find(t => t.value === tipo)?.label || tipo
+    return tipos.find((t) => t.value === tipo)?.label ?? tipo
   }
 
   const getEstadoIcon = (estado: AvaluoEstado) => {
@@ -135,8 +101,16 @@ export default function AvaluosPage() {
     }
   }
 
-  const canEdit = (avaluo: Avaluo) => {
-    return avaluo.creadoPor === currentUserId
+  const canEdit = (avaluo: AvaluoDTO) => {
+    return avaluo.createdBy === currentUserId
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin h-10 w-10 text-primary mx-auto" />
+      </div>
+    )
   }
 
   return (
@@ -181,7 +155,7 @@ export default function AvaluosPage() {
             >
               Todos ({avaluos.length})
             </Button>
-            {estados.map(estado => (
+            {estados.map((estado) => (
               <Button
                 key={estado.value}
                 variant={filtroEstado === estado.value ? "default" : "outline"}
@@ -189,7 +163,7 @@ export default function AvaluosPage() {
                 onClick={() => setFiltroEstado(estado.value)}
                 className={filtroEstado === estado.value ? "bg-primary" : "border-slate-700 text-white hover:bg-slate-800"}
               >
-                {estado.label} ({avaluos.filter(a => a.estado === estado.value).length})
+                {estado.label} ({avaluos.filter((a) => a.estado === estado.value).length})
               </Button>
             ))}
           </div>
@@ -218,7 +192,7 @@ export default function AvaluosPage() {
             </div>
           ) : (
             filteredAvaluos.map((avaluo) => {
-              const estadoInfo = getEstadoInfo(avaluo.estado)
+              const estadoInfo = getEstadoInfo(avaluo.estado as AvaluoEstado)
               const editable = canEdit(avaluo)
 
               return (
@@ -244,11 +218,11 @@ export default function AvaluosPage() {
                     <div className="flex items-start gap-2">
                       <Building2 className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
                       <div className="min-w-0">
-                        <div className="text-sm text-white truncate" title={avaluo.propiedadNombre}>
-                          {avaluo.propiedadNombre}
+                        <div className="text-sm text-white truncate" title={avaluo.nombreInmueble}>
+                          {avaluo.nombreInmueble}
                         </div>
-                        <div className="text-xs text-slate-500 truncate hidden sm:block" title={avaluo.propiedadDireccion}>
-                          {avaluo.propiedadDireccion}
+                        <div className="text-xs text-slate-500 truncate hidden sm:block" title={avaluo.direccion ?? ""}>
+                          {avaluo.direccion || "Sin dirección"}
                         </div>
                       </div>
                     </div>
@@ -257,52 +231,57 @@ export default function AvaluosPage() {
                   {/* Tipo */}
                   <div>
                     <div className="text-xs text-slate-500 lg:hidden">Tipo</div>
-                    <div className="text-sm text-slate-300">{getTipoLabel(avaluo.tipo)}</div>
+                    <div className="text-sm text-slate-300">{getTipoLabel(avaluo.tipo as AvaluoTipo)}</div>
                   </div>
 
                   {/* Estado */}
                   <div>
                     <div className="text-xs text-slate-500 lg:hidden">Estado</div>
                     <span className={`px-2 py-1 text-xs font-medium rounded border flex items-center gap-1 w-fit ${estadoInfo.color}`}>
-                      {getEstadoIcon(avaluo.estado)}
+                      {getEstadoIcon(avaluo.estado as AvaluoEstado)}
                       {estadoInfo.label}
                     </span>
                   </div>
 
                   {/* Creado por */}
                   <div className="hidden lg:block">
-                    <div className="text-xs text-slate-500 lg:hidden">Creado por</div>
                     <div className="flex items-center gap-2">
                       <User className="w-3.5 h-3.5 text-slate-500" />
-                      <div className="text-sm text-slate-300 truncate" title={avaluo.creadoPorNombre}>
-                        {avaluo.creadoPorNombre}
+                      <div className="text-sm text-slate-300 truncate" title={avaluo.creadoPorNombre ?? ""}>
+                        {avaluo.creadoPorNombre || "—"}
                       </div>
                     </div>
                   </div>
 
                   {/* Acciones */}
                   <div className="flex items-center gap-2">
-                    <button
-                      className="p-2 text-slate-400 hover:text-blue-400 transition-colors"
-                      title="Ver detalle"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    {avaluo.estado === "APROBADO" && (
+                    <Link href={`/dashboard/avaluos/${avaluo.id}`}>
                       <button
-                        className="p-2 text-slate-400 hover:text-green-400 transition-colors"
-                        title="Descargar PDF"
+                        className="p-2 text-slate-400 hover:text-blue-400 transition-colors"
+                        title="Ver detalle"
                       >
-                        <Download className="w-4 h-4" />
+                        <Eye className="w-4 h-4" />
                       </button>
+                    </Link>
+                    {avaluo.estado === "APROBADO" && (
+                      <Link href={`/dashboard/avaluos/${avaluo.id}`}>
+                        <button
+                          className="p-2 text-slate-400 hover:text-green-400 transition-colors"
+                          title="Descargar PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </Link>
                     )}
                     {editable && avaluo.estado !== "APROBADO" && (
-                      <button
-                        className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                      <Link href={`/dashboard/avaluos/${avaluo.id}`}>
+                        <button
+                          className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </Link>
                     )}
                   </div>
                 </div>

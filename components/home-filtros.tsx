@@ -10,34 +10,40 @@ interface FiltrosInmueblesProps {
   className?: string
 }
 
+/** Valor interno que representa "sin selección" (no aparece como item en el dropdown). */
+const NONE = "__none__"
+
 export function FiltrosInmuebles({ className }: FiltrosInmueblesProps) {
-  const [tipoInmueble, setTipoInmueble] = useState("todos")
-  const [tipoOperacion, setTipoOperacion] = useState("todos")
+  const [tipoInmueble, setTipoInmueble] = useState(NONE)
+  const [tipoOperacion, setTipoOperacion] = useState(NONE)
 
   const tiposInmueble = [
-    { value: "todos", label: "Todos los tipos" },
     { value: "casa", label: "Casa" },
     { value: "departamento", label: "Departamento" },
     { value: "terreno", label: "Terreno" },
     { value: "local", label: "Local Comercial" },
     { value: "oficina", label: "Oficina" },
-    { value: "galpon", label: "Galpón" }
+    { value: "galpon", label: "Galpón" },
   ]
 
   const tiposOperacion = [
-    { value: "todos", label: "Todas las operaciones" },
     { value: "venta", label: "Venta" },
     { value: "alquiler", label: "Alquiler" },
-    { value: "anticretico", label: "Anticrético" }
+    { value: "anticretico", label: "Anticrético" },
   ]
 
   const getTipoInmuebleLabel = () => {
-    return tiposInmueble.find(t => t.value === tipoInmueble)?.label || "Todos los tipos"
+    if (tipoInmueble === NONE) return "Seleccione un tipo"
+    return tiposInmueble.find((t) => t.value === tipoInmueble)?.label ?? "Seleccione un tipo"
   }
 
   const getTipoOperacionLabel = () => {
-    return tiposOperacion.find(t => t.value === tipoOperacion)?.label || "Todas las operaciones"
+    if (tipoOperacion === NONE) return "Seleccione una operación"
+    return tiposOperacion.find((t) => t.value === tipoOperacion)?.label ?? "Seleccione una operación"
   }
+
+  const ambosSeleccionados = tipoInmueble !== NONE && tipoOperacion !== NONE
+  const href = `/mapa-interactivo?tipo=${tipoInmueble}&operacion=${tipoOperacion}`
 
   return (
     <Card className={`border-2 border-slate-700/50 bg-slate-900/80 backdrop-blur-xl shadow-2xl overflow-hidden ${className || ""}`}>
@@ -58,13 +64,17 @@ export function FiltrosInmuebles({ className }: FiltrosInmueblesProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {/* Tipo de Inmueble */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Tipo de Inmueble</label>
+            <label className="text-sm font-medium text-slate-300">
+              Tipo de Inmueble <span className="text-red-400">*</span>
+            </label>
             <Select value={tipoInmueble} onValueChange={setTipoInmueble}>
               <SelectTrigger className="w-full h-12 px-4 bg-slate-800/50 border-2 border-slate-700 rounded-xl text-white hover:border-primary/50 transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20">
-                <span className="text-white text-sm">{getTipoInmuebleLabel()}</span>
+                <span className={`text-sm ${tipoInmueble === NONE ? "text-slate-500" : "text-white"}`}>
+                  {getTipoInmuebleLabel()}
+                </span>
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-700">
-                {tiposInmueble.map(tipo => (
+                {tiposInmueble.map((tipo) => (
                   <SelectItem
                     key={tipo.value}
                     value={tipo.value}
@@ -79,13 +89,17 @@ export function FiltrosInmuebles({ className }: FiltrosInmueblesProps) {
 
           {/* Tipo de Operación */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Tipo de Operación</label>
+            <label className="text-sm font-medium text-slate-300">
+              Tipo de Operación <span className="text-red-400">*</span>
+            </label>
             <Select value={tipoOperacion} onValueChange={setTipoOperacion}>
               <SelectTrigger className="w-full h-12 px-4 bg-slate-800/50 border-2 border-slate-700 rounded-xl text-white hover:border-primary/50 transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20">
-                <span className="text-white text-sm">{getTipoOperacionLabel()}</span>
+                <span className={`text-sm ${tipoOperacion === NONE ? "text-slate-500" : "text-white"}`}>
+                  {getTipoOperacionLabel()}
+                </span>
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-700">
-                {tiposOperacion.map(tipo => (
+                {tiposOperacion.map((tipo) => (
                   <SelectItem
                     key={tipo.value}
                     value={tipo.value}
@@ -99,14 +113,26 @@ export function FiltrosInmuebles({ className }: FiltrosInmueblesProps) {
           </div>
         </div>
 
-        {/* Botón de acción */}
-        <Link href="/dashboard/inmuebles/ver">
-          <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 transform hover:scale-105">
+        {/* Botón de acción — deshabilitado hasta elegir tipo Y operación */}
+        {ambosSeleccionados ? (
+          <Link href={href}>
+            <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 transform hover:scale-105">
+              <Map className="w-5 h-5" />
+              <span>Ver Mapa Interactivo</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </Link>
+        ) : (
+          <button
+            disabled
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-slate-700/60 text-slate-400 font-semibold rounded-xl cursor-not-allowed"
+            title="Seleccioná un tipo y una operación"
+          >
             <Map className="w-5 h-5" />
             <span>Ver Mapa Interactivo</span>
             <ArrowRight className="w-5 h-5" />
           </button>
-        </Link>
+        )}
       </div>
     </Card>
   )

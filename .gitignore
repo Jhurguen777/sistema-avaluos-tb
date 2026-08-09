@@ -13,6 +13,7 @@ node_modules
 .next
 out
 dist
+tsconfig.tsbuildinfo
 
 # Logs
 *.log
@@ -31,7 +32,13 @@ AGENTS.md
 INICIO.md
 PASOS-FINALES.md
 ESTRUCTURA-FINAL.md
+DOCKERIZACION-CONTABO.md
+SUBIRCONTABO.md
+DEPLOY.md
+PATTERNS.md
+GUIA-IMPORT-JSON.md
 *.md.bak
+*.bak
 
 # Archivos temporales
 *.tmp

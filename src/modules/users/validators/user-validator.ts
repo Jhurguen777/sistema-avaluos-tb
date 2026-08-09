@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod"
-import { ROLES } from "@/src/constants/index"
+import { ROLES } from "@/constants/index"
 
 /**
  * Schema para crear usuario

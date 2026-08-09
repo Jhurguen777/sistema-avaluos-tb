@@ -140,7 +140,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed top-16 inset-x-0 bottom-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
@@ -148,7 +148,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md md:max-w-lg bg-[#1e293b] rounded-2xl p-6 md:p-8 border border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative w-full max-w-md bg-[#1e293b] rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-2xl max-h-[calc(90vh-4rem)] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={handleClose}
@@ -158,7 +158,7 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
           <X className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
 
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-5">
           {/* Header */}
           <div className="flex items-center gap-3">
             <div className="p-2 sm:p-3 rounded-xl bg-[#233C7A] text-white shadow-lg">
@@ -251,7 +251,6 @@ export function CrearUsuarioModalSimple({ open, onOpenChange, onUserCreated }: C
               <Select
                 value={role}
                 onValueChange={(value) => {
-                  console.log("Select onChange - value:", value, "role actual:", role)
                   // Solo actualizar si el valor no es vacío
                   if (value && value.trim() !== "") {
                     setRole(value)

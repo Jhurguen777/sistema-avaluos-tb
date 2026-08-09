@@ -6,6 +6,7 @@
 "use server"
 
 import { auth } from "@/shared/auth/nextauth"
+import { ROLES_CONFIG } from "@/config/roles"
 import { userService } from "../services/user-service"
 import { userRepository } from "../repositories/user-repository"
 import { resetPasswordValidator } from "../validators/user-validator"
@@ -20,7 +21,7 @@ export async function resetPasswordAction(id: string, data: ResetPasswordInput) 
       return { success: false, error: "No autenticado" }
     }
 
-    if (session.user.role !== "ADMIN") {
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? "", "usuarios.reset_password")) {
       return { success: false, error: "No autorizado. Solo administradores pueden resetear passwords" }
     }
 

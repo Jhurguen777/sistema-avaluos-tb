@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,9 +16,13 @@ import {
   Building2,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "@/components/ui/use-toast"
+import { misAvaluosAction } from "@/modules/avaluos/actions"
+import type { AvaluoDTO } from "@/modules/avaluos/types/avaluo.types"
 
 type AvaluoEstado = "BORRADOR" | "EN_REVISION" | "APROBADO" | "RECHAZADO"
 type AvaluoTipo = "COMERCIAL" | "ALQUILER" | "VENTA_RAPIDA" | "CAPITAL_COMERCIAL"
@@ -32,6 +36,7 @@ interface Avaluo {
   solicitante?: string
   propiedadNombre: string
   propiedadDireccion: string
+  valorComercial?: number
 }
 
 const estados: { value: AvaluoEstado; label: string; color: string }[] = [
@@ -48,35 +53,41 @@ const tipos: { value: AvaluoTipo; label: string }[] = [
   { value: "CAPITAL_COMERCIAL", label: "Capital Comercial" }
 ]
 
-// Datos mock - en producción vienen de la BD filtrados por usuario
-const mockMisAvaluos: Avaluo[] = [
-  {
-    id: "1",
-    codigo: "AVAL-2026-001",
-    tipo: "COMERCIAL",
-    estado: "APROBADO",
-    fechaElaboracion: "2026-01-15",
-    solicitante: "Juan Pérez",
-    propiedadNombre: "Departamento Centro",
-    propiedadDireccion: "Calle Sucre 123"
-  },
-  {
-    id: "3",
-    codigo: "AVAL-2026-003",
-    tipo: "COMERCIAL",
-    estado: "BORRADOR",
-    fechaElaboracion: "2026-03-10",
-    solicitante: "Luis Torres",
-    propiedadNombre: "Local Comercial",
-    propiedadDireccion: "Calle Florida 789"
-  }
-]
-
 export default function MisAvaluosPage() {
   const { data: session } = useSession()
-  const [avaluos, setAvaluos] = useState<Avaluo[]>(mockMisAvaluos)
+  const [avaluos, setAvaluos] = useState<Avaluo[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filtroEstado, setFiltroEstado] = useState<string>("todos")
+
+  // Cargar mis avalúos desde la BD (filtrado por usuario en el servidor)
+  useEffect(() => {
+    async function load() {
+      try {
+        const result = await misAvaluosAction({ page: 1, limit: 100 })
+        if (result.success && result.data) {
+          const mapeados: Avaluo[] = (result.data.avaluos as AvaluoDTO[]).map((a) => ({
+            id: a.id,
+            codigo: a.codigo,
+            tipo: a.tipo as AvaluoTipo,
+            estado: a.estado as AvaluoEstado,
+            fechaElaboracion: new Date(a.fechaElaboracion).toISOString(),
+            solicitante: a.solicitante ?? undefined,
+            propiedadNombre: a.nombreInmueble,
+            propiedadDireccion: a.direccion ?? "",
+            valorComercial: a.valorComercial ?? undefined,
+          }))
+          setAvaluos(mapeados)
+        }
+      } catch (error) {
+        console.error("Error cargando mis avalúos:", error)
+        toast.error("Error al cargar mis avalúos")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
 
   // Filtrar avalúos
   const filteredAvaluos = avaluos.filter(avaluo => {
@@ -110,6 +121,14 @@ export default function MisAvaluosPage() {
       case "RECHAZADO":
         return <XCircle className="w-4 h-4" />
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -274,27 +293,33 @@ export default function MisAvaluosPage() {
 
                   {/* Acciones */}
                   <div className="flex items-center gap-2">
-                    <button
-                      className="p-2 text-slate-400 hover:text-blue-400 transition-colors"
-                      title="Ver detalle"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    {avaluo.estado === "APROBADO" && (
+                    <Link href={`/dashboard/avaluos/${avaluo.id}`}>
                       <button
-                        className="p-2 text-slate-400 hover:text-green-400 transition-colors"
-                        title="Descargar PDF"
+                        className="p-2 text-slate-400 hover:text-blue-400 transition-colors"
+                        title="Ver detalle"
                       >
-                        <Download className="w-4 h-4" />
+                        <Eye className="w-4 h-4" />
                       </button>
+                    </Link>
+                    {avaluo.estado === "APROBADO" && (
+                      <Link href={`/dashboard/avaluos/${avaluo.id}`}>
+                        <button
+                          className="p-2 text-slate-400 hover:text-green-400 transition-colors"
+                          title="Descargar PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </Link>
                     )}
                     {avaluo.estado !== "APROBADO" && (
-                      <button
-                        className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                      <Link href={`/dashboard/avaluos/${avaluo.id}`}>
+                        <button
+                          className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </Link>
                     )}
                   </div>
                 </div>

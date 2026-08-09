@@ -6,6 +6,7 @@
 "use server"
 
 import { auth } from "@/shared/auth/nextauth"
+import { ROLES_CONFIG } from "@/config/roles"
 import { userService } from "../services/user-service"
 import { auditService } from "@/shared/security/audit-service"
 
@@ -17,7 +18,7 @@ export async function reactivateUserAction(id: string) {
       return { success: false, error: "No autenticado" }
     }
 
-    if (session.user.role !== "ADMIN") {
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? "", "usuarios.update")) {
       return { success: false, error: "No autorizado. Solo administradores pueden reactivar usuarios" }
     }
 

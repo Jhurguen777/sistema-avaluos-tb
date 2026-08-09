@@ -1,24 +1,22 @@
 /**
  * Constantes de Categorías Constructivas
- * Enumeración de categorías para construcción
+ * Enumeración de categorías para construcción (basado en tabla de valores de reposición)
  */
 
 import { z } from 'zod'
 
 export const CATEGORIAS_CONSTRUCTIVAS = {
   LUJO: 'LUJO',
-  SEMILUJO: 'SEMILUJO',
-  MEDIA: 'MEDIA',
+  PRIMERA: 'PRIMERA',
+  ESTANDAR: 'ESTANDAR',
   ECONOMICA: 'ECONOMICA',
-  POPULAR: 'POPULAR'
 } as const
 
 export const CATEGORIA_CONSTRUCTIVA_LABELS: Record<keyof typeof CATEGORIAS_CONSTRUCTIVAS, string> = {
   LUJO: 'Lujo',
-  SEMILUJO: 'Semilujo',
-  MEDIA: 'Media',
+  PRIMERA: 'Primera',
+  ESTANDAR: 'Estándar',
   ECONOMICA: 'Económica',
-  POPULAR: 'Popular'
 }
 
 export const CategoriaConstructiva = z.enum(Object.values(CATEGORIAS_CONSTRUCTIVAS) as [string, ...string[]])

@@ -6,6 +6,7 @@
 "use server"
 
 import { auth } from "@/shared/auth/nextauth"
+import { ROLES_CONFIG } from "@/config/roles"
 import { userService } from "../services/user-service"
 import { userRepository } from "../repositories/user-repository"
 import { updateUserValidator } from "../validators/user-validator"
@@ -20,7 +21,7 @@ export async function updateUserAction(id: string, data: UpdateUserInput) {
       return { success: false, error: "No autenticado" }
     }
 
-    if (session.user.role !== "ADMIN") {
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? "", "usuarios.update")) {
       return { success: false, error: "No autorizado. Solo administradores pueden actualizar usuarios" }
     }
 

@@ -76,18 +76,6 @@ export const userService = {
   },
 
   /**
-   * Eliminar usuario
-   */
-  async delete(id: string, deletedBy: string): Promise<User> {
-    // No eliminarse a sí mismo
-    if (id === deletedBy) {
-      throw new Error("No puedes eliminar tu propio usuario")
-    }
-
-    return await userRepository.delete(id)
-  },
-
-  /**
    * Reset password
    */
   async resetPassword(id: string, newPassword: string): Promise<void> {

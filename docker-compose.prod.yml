@@ -1,0 +1,70 @@
+# ===========================================================================
+# Docker Compose de PRODUCCION — GeoPricer Avalúos
+# Arquitectura (Rama A): app (Next.js) + db (PostgreSQL + PostGIS)
+#
+# Uso (en el servidor Contabo):
+#   1. cp .env.example .env  && editar .env con los secretos reales
+#   2. docker compose -f docker-compose.prod.yml up -d --build
+#
+# Este archivo NO contiene secretos: se leen de variables ${...} del .env.
+# ===========================================================================
+
+services:
+  avaluos-db:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: geopricer-avaluos-db
+    restart: always
+    environment:
+      POSTGRES_USER: geopricer_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: geopricer_avaluos
+    volumes:
+      - avaluos_pgdata:/var/lib/postgresql/data
+    networks:
+      # Aislada de internet: solo accesible desde la app
+      - avaluos-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geopricer_user -d geopricer_avaluos"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  avaluos-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geopricer-avaluos-app
+    restart: always
+    depends_on:
+      avaluos-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # El host es el nombre del servicio de BD (resolución DNS interna de Docker).
+      # No definir DATABASE_URL en el .env; se construye acá con POSTGRES_PASSWORD.
+      DATABASE_URL: postgresql://geopricer_user:${POSTGRES_PASSWORD}@avaluos-db:5432/geopricer_avaluos?schema=public
+      NODE_ENV: production
+      PORT: "3000"
+    volumes:
+      # Documentos subidos por los usuarios (persisten entre restarts)
+      - avaluos_uploads:/app/public/uploads
+      # Marcador "ya inicializado": evita repetir schema-sync + seeds en cada restart
+      - avaluos_initflag:/initflag
+    networks:
+      # Red interna: para hablar con la BD
+      - avaluos-net
+      # Red del admin: para que Nginx la alcance + salida a internet (Overpass)
+      - proxy_network
+
+volumes:
+  avaluos_pgdata:
+  avaluos_uploads:
+  avaluos_initflag:
+
+networks:
+  avaluos-net:
+    driver: bridge
+  proxy_network:
+    external: true

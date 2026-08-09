@@ -18,7 +18,6 @@ export default function DashboardLayout({
   const handleOpenSidebar = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log("handleOpenSidebar called")
     setIsMobileSidebarOpen(true)
   }
 
@@ -57,7 +56,7 @@ export default function DashboardLayout({
                 {/* Logo */}
                 <Image
                   src="/recurso2analityc2.png"
-                  alt="GeoPricer Avalúos"
+                  alt="Alfa Analitycs"
                   width={40}
                   height={40}
                   className="relative w-10 h-10 object-contain"
@@ -68,9 +67,9 @@ export default function DashboardLayout({
             {/* Nombre de la app */}
             <div className="hidden sm:block">
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
-                GeoPricer
+                Alfa Analitycs
               </h1>
-              <p className="text-xs text-slate-400">Sistema de Avalúos</p>
+              <p className="text-xs text-slate-400">Sistema de gestionamiento de Avalúos</p>
             </div>
           </div>
 

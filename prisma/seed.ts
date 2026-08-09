@@ -1,18 +1,29 @@
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 
-const prisma = new PrismaClient()
+/**
+ * Seed: Usuario administrador inicial.
+ *
+ * Crea (o confirma) el usuario ADMIN usando las variables de entorno
+ * ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_NAME. Es idempotente (upsert).
+ *
+ * Uso individual:  npx prisma db seed  (o integrado en seed-all.ts)
+ *
+ * @param prisma Cliente Prisma reutilizable.
+ */
+export async function seedAdmin(prisma: PrismaClient) {
+  const email = process.env.ADMIN_EMAIL ?? "admin@geopricer.com"
+  const password = process.env.ADMIN_PASSWORD ?? "admin123"
+  const name = process.env.ADMIN_NAME ?? "Administrador"
 
-async function main() {
-  // Crear usuario administrador por defecto
-  const hashedPassword = await bcrypt.hash("admin123", 10)
+  const hashedPassword = await bcrypt.hash(password, 10)
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@geopricer.com" },
+    where: { email },
     update: {},
     create: {
-      email: "admin@geopricer.com",
-      name: "Administrador",
+      email,
+      name,
       password: hashedPassword,
       role: "ADMIN",
       isActive: true,
@@ -20,16 +31,23 @@ async function main() {
     },
   })
 
-  console.log("✅ Usuario administrador creado:", admin.email)
-  console.log("🔑 Contraseña: admin123")
-  console.log("📧 Email: admin@geopricer.com")
+  console.log(`✅ Usuario administrador: ${admin.email}`)
 }
 
-main()
-  .catch((e) => {
-    console.error(e)
+declare const require: NodeJS.Require
+
+async function main() {
+  const prisma = new PrismaClient()
+  try {
+    await seedAdmin(prisma)
+  } catch (e) {
+    console.error("❌ Error al sembrar admin:", e)
     process.exit(1)
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect()
-  })
+  }
+}
+
+if (require.main === module) {
+  main()
+}

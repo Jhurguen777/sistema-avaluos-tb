@@ -1,0 +1,53 @@
+# Dependencias (se instalan dentro del contenedor)
+node_modules
+
+# Build de Next.js (se genera dentro del contenedor)
+.next
+out
+dist
+
+# Git
+.git
+.gitignore
+
+# Variables de entorno (¡NUNCA incluir secretos en la imagen!)
+.env
+.env.local
+.env.production
+
+# Documentos subidos en runtime (van en volumen, no en la imagen)
+public/uploads
+
+# Migraciones de Prisma (no se usan; se sincroniza con db push)
+prisma/migrations
+
+# Docker (no se necesitan dentro del contexto de build)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Documentación interna (no aporta al build)
+README.md
+CLAUDE.md
+AGENTS.md
+INICIO.md
+PASOS-FINALES.md
+ESTRUCTURA-FINAL.md
+DOCKERIZACION-CONTABO.md
+DEPLOY.md
+PATTERNS.md
+FASES-IMPLEMENTACION.md
+*.md.bak
+
+# IDE / SO
+.vscode
+.idea
+*.log
+npm-debug.log*
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Datos locales de MinIO (no se usa en producción)
+minio_data

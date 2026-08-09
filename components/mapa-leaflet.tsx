@@ -24,6 +24,7 @@ interface Property {
   lat: number
   lng: number
   direccion?: string
+  categoria?: string
 }
 
 interface MapaLeafletProps {
@@ -37,6 +38,8 @@ interface MapaLeafletProps {
   radarRadius?: number
   onRadarChange?: (lat: number, lng: number, radius: number) => void
   radarPosition?: [number, number] | null
+  /** Agrupar marcadores cuando hay muchos (recomendado para >50). */
+  cluster?: boolean
 }
 
 export function MapaLeaflet(props: MapaLeafletProps) {
