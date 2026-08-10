@@ -9,7 +9,9 @@
 # Stage 1: deps — instala dependencias y genera el cliente Prisma
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# openssl: requerido por el motor de Prisma para detectar la versión de libssl
+# (sin esto, prisma generate/download usa el engine equivocado y falla en Alpine).
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -50,7 +52,9 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # netcat-openbsd: para esperar a la BD en el entrypoint
-RUN apk add --no-cache netcat-openbsd
+# openssl: requerido por el motor de schema de Prisma (db execute / db push) en Alpine;
+#          sin esto, el entrypoint cae en bucle con "Error in Schema engine".
+RUN apk add --no-cache netcat-openbsd openssl
 
 # Usuario no-root
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
