@@ -232,7 +232,15 @@ export function ComparablesAvaluo({ avaluoId, comparables, editable, onActualiza
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {comparables.map((c) => {
-              const tieneFact = c.factorUbicacion != null || c.factorVia != null || c.factorFrente != null
+              // Los 6 factores de homologación (Fub, Fvia, Fff, Fi, Fm, Fs):
+              // badge coherente con tieneFactoresCompletos del server
+              const tieneFact =
+                c.factorUbicacion != null ||
+                c.factorVia != null ||
+                c.factorFrente != null ||
+                c.factorEsquina != null ||
+                c.factorMorfologico != null ||
+                c.factorServicios != null
               return (
                 <div key={c.id} className="bg-slate-800/50 rounded-lg p-3 text-sm">
                   <div className="flex items-center justify-between mb-2">

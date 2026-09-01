@@ -15,7 +15,7 @@ export interface Property {
   lat: number
   lng: number
   image: string
-  type: 'house' | 'apartment' | 'land'
+  type: 'house' | 'apartment' | 'land' | 'commercial'
   status: 'available' | 'sold' | 'rented'
   /** Categoría original del inmueble (ProductCategoryEnum) — para filtros del mapa */
   categoria?: string

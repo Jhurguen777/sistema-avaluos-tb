@@ -16,10 +16,12 @@ declare const require: NodeJS.Require
 const categorias: { name: ProductCategoryEnum; description: string }[] = [
   { name: "CASA", description: "Casas y viviendas unifamiliares" },
   { name: "DEPARTAMENTO", description: "Departamentos y apartamentos" },
+  { name: "PENTHOUSE", description: "Penthouses y apartamentos de lujo en última planta" },
   { name: "TERRENO", description: "Terrenos y lotes" },
   { name: "LOCAL_COMERCIAL", description: "Locales comerciales y tiendas" },
   { name: "OFICINA", description: "Oficinas y espacios de trabajo" },
   { name: "QUINTA", description: "Quintas y propiedades de esparcimiento" },
+  { name: "OTROS", description: "Otras propiedades no clasificadas" },
 ]
 
 /**

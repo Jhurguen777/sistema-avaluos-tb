@@ -16,7 +16,6 @@ import {
   Map as MapIcon,
   Store,
   Briefcase,
-  Warehouse,
   Layers,
   Tag,
   Key,
@@ -47,7 +46,7 @@ const CATEGORIAS: {
   { value: "TERRENO", label: "Terreno", icon: MapIcon },
   { value: "LOCAL_COMERCIAL", label: "Local Comercial", icon: Store },
   { value: "OFICINA", label: "Oficina", icon: Briefcase },
-  { value: "GALPON", label: "Galpón", icon: Warehouse },
+  // GALPON no existe en ProductCategoryEnum: los galpones se guardan como OTROS
   { value: "OTROS", label: "Otros", icon: Layers },
 ]
 

@@ -219,6 +219,24 @@ export function LeafletMapClient({
     }
   }, [])
 
+  // Volar a la nueva vista cuando el padre cambia center/zoom por VALOR
+  // (ej. al fijar la ubicación en el paso 3 del wizard). Se compara como string
+  // porque los consumidores suelen pasar arrays inline (identidad nueva por render).
+  // El primer render no vuela: la vista inicial ya se aplicó al crear el mapa.
+  const centerKey = center ? `${center[0]},${center[1]}` : ""
+  const primerRenderRef = useRef(true)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !centerKey) return
+    if (primerRenderRef.current) {
+      primerRenderRef.current = false
+      return
+    }
+    map.flyTo([Number(centerKey.split(",")[0]), Number(centerKey.split(",")[1])], zoom, {
+      duration: 0.8,
+    })
+  }, [centerKey, zoom])
+
   // Cambiar capa de teselas cuando se alterna entre calle y satélite
   useEffect(() => {
     const map = mapRef.current

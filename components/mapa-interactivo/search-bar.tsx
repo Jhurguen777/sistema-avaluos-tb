@@ -101,6 +101,16 @@ export function SearchBar({
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  /** Cancela la búsqueda anterior para que una respuesta vieja no pise la nueva */
+  const abortRef = useRef<AbortController | undefined>(undefined)
+
+  // Al desmontar: limpiar debounce y cancelar la búsqueda en vuelo
+  useEffect(() => {
+    return () => {
+      clearTimeout(debounceRef.current)
+      abortRef.current?.abort()
+    }
+  }, [])
 
   // Cargar búsquedas recientes
   useEffect(() => {
@@ -131,6 +141,12 @@ export function SearchBar({
       return
     }
 
+    // Cancelar la búsqueda anterior (race condition): una respuesta lenta y
+    // vieja nunca debe sobrescribir los resultados de la consulta actual
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setIsSearching(true)
     setError(null)
 
@@ -143,13 +159,12 @@ export function SearchBar({
         "accept-language": "es"
       })
 
+      // Nota: no se envía header User-Agent (los navegadores lo prohíben);
+      // Nominatim se identifica por Referer. El debounce de 500 ms respeta
+      // su política de máx. 1 req/s.
       const response = await fetch(
         `${NOMINATIM_API}/search?${params.toString()}`,
-        {
-          headers: {
-            "User-Agent": "GeoPricer-Avaluos"
-          }
-        }
+        { signal: controller.signal }
       )
 
       if (!response.ok) {
@@ -159,17 +174,25 @@ export function SearchBar({
       const data: NominatimResult[] = await response.json()
 
       setResults(data)
-      setShowResults(data.length > 0)
+      // Mostrar el dropdown también con 0 resultados: así el usuario ve el
+      // mensaje "No se encontraron resultados" (antes quedaba invisible)
+      setShowResults(true)
 
       if (data.length === 0) {
         setError("No se encontraron resultados")
       }
     } catch (err) {
+      // Búsqueda cancelada por una más reciente: salir sin tocar el estado
+      if ((err as Error)?.name === "AbortError") return
       console.error("Error searching places:", err)
       setError("Error al buscar. Intenta nuevamente.")
       setResults([])
+      setShowResults(true)
     } finally {
-      setIsSearching(false)
+      // Solo apagar el spinner si esta sigue siendo la búsqueda activa
+      if (abortRef.current === controller) {
+        setIsSearching(false)
+      }
     }
   }, [])
 

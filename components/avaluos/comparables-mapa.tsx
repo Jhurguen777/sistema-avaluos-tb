@@ -212,9 +212,14 @@ export function ComparablesMapa({ sujetoLat, sujetoLng, seleccionados, onSelecci
       {seleccionados.length > 0 && (
         <Card className="border-2 border-emerald-500/30 bg-emerald-500/5">
           <div className="p-4 sm:p-6">
-            <h4 className="text-sm font-semibold text-emerald-300 mb-3">
+            <h4 className={`text-sm font-semibold mb-1 ${seleccionados.length >= 4 ? "text-emerald-300" : "text-amber-300"}`}>
               Comparables seleccionados ({seleccionados.length})
             </h4>
+            {seleccionados.length < 4 && (
+              <p className="text-xs text-amber-400 mb-3">
+                Se recomiendan mínimo 4 comparables para un promedio confiable del valor unitario.
+              </p>
+            )}
             <div className="space-y-2">
               {seleccionados.map((r) => (
                 <div key={r.id} className="flex items-center justify-between bg-slate-900/40 rounded p-2">

@@ -35,16 +35,17 @@ import {
 import type { InmuebleDTO } from "@/modules/inmuebles/types/inmueble.types"
 
 type PropertyCategory =
-  | "CASA" | "DEPARTAMENTO" | "TERRENO" | "LOCAL_COMERCIAL" | "OFICINA" | "GALPON" | "OTROS"
+  | "CASA" | "DEPARTAMENTO" | "PENTHOUSE" | "TERRENO" | "LOCAL_COMERCIAL" | "OFICINA" | "QUINTA" | "OTROS"
 type OperationType = "VENTA" | "ALQUILER" | "ANTICRETICO"
 
 const categories: { value: PropertyCategory; label: string }[] = [
   { value: "CASA", label: "Casa" },
   { value: "DEPARTAMENTO", label: "Departamento" },
+  { value: "PENTHOUSE", label: "Penthouse" },
   { value: "TERRENO", label: "Terreno" },
   { value: "LOCAL_COMERCIAL", label: "Local Comercial" },
   { value: "OFICINA", label: "Oficina" },
-  { value: "GALPON", label: "Galpón" },
+  { value: "QUINTA", label: "Quinta" },
   { value: "OTROS", label: "Otros" },
 ]
 

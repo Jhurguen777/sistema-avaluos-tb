@@ -7,6 +7,7 @@ import { userRepository } from "../repositories/user-repository"
 import { authService } from "@/modules/auth/services/auth-service"
 import type { CreateUserInput, UpdateUserInput } from "../repositories/user-repository"
 import type { User } from "@prisma/client"
+import { randomInt } from "crypto"
 
 export const userService = {
   /**
@@ -84,14 +85,14 @@ export const userService = {
   },
 
   /**
-   * Generar password temporal
+   * Generar password temporal con PRNG criptográfico (crypto.randomInt)
    */
   generateTempPassword(): string {
     const length = 12
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
     let password = ""
     for (let i = 0; i < length; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length))
+      password += charset.charAt(randomInt(0, charset.length))
     }
     return password
   },

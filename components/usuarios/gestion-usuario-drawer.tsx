@@ -37,6 +37,34 @@ const ICONOS_ACCIONES: Record<string, React.ComponentType<{ className?: string }
   Eye, Plus, Pencil, Trash2,
 }
 
+/**
+ * Password temporal generado con PRNG criptográfico del navegador
+ * (crypto.getRandomValues) garantizando la política del servidor:
+ * 8+ caracteres con al menos una mayúscula, una minúscula y un número.
+ * Se excluyen caracteres confusos (l, I, O, 0, 1) para lectura fácil.
+ */
+function generarPasswordTemporal(): string {
+  const minus = "abcdefghijkmnopqrstuvwxyz"
+  const mayus = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+  const numeros = "23456789"
+  const todos = minus + mayus + numeros
+  const aleatorio = (set: string): string => {
+    const buf = new Uint32Array(1)
+    crypto.getRandomValues(buf)
+    return set[buf[0] % set.length]
+  }
+  const chars = [aleatorio(minus), aleatorio(mayus), aleatorio(numeros)]
+  while (chars.length < 10) chars.push(aleatorio(todos))
+  // Fisher-Yates con crypto para mezclar las posiciones garantizadas
+  for (let i = chars.length - 1; i > 0; i--) {
+    const buf = new Uint32Array(1)
+    crypto.getRandomValues(buf)
+    const j = buf[0] % (i + 1)
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+  return chars.join("")
+}
+
 /** Toggle Switch personalizado */
 function ToggleSwitch({
   active,
@@ -191,7 +219,7 @@ export function GestionUsuarioDrawer({
         }
       } else {
         const { resetPasswordAction } = await import("@/modules/users/actions")
-        const tempPassword = Math.random().toString(36).slice(-8)
+        const tempPassword = generarPasswordTemporal()
         const result = await resetPasswordAction(user.id, {
           newPassword: tempPassword,
           confirmPassword: tempPassword,

@@ -121,16 +121,18 @@ const MARKER_STYLES: Record<string, { color: string; label: string }> = {
   house: { color: "#10b981", label: "Casa" },
   apartment: { color: "#3b82f6", label: "Departamento" },
   land: { color: "#f59e0b", label: "Terreno" },
+  commercial: { color: "#8b5cf6", label: "Comercial" },
 }
 
 const ICON_PATHS: Record<string, string> = {
   house: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   apartment: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21V3"/><path d="M15 21V3"/><path d="M4 9h16"/><path d="M4 15h16"/>',
   land: '<path d="m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z"/><path d="M12 22v-3"/>',
+  commercial: '<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 2v16h16V2"/><path d="M2 7h20"/><path d="M7 18v4"/><path d="M17 18v4"/><path d="M8 22h8"/>',
 }
 
 /**
- * Pin con icono y color según el tipo de inmueble (sin el "ping" anterior).
+ * Pin con icono y color segǧn el tipo de inmueble (sin el "ping" anterior).
  */
 const createPropertyMarkerIcon = (type: string) => {
   const style = MARKER_STYLES[type] ?? MARKER_STYLES.house
@@ -148,6 +150,22 @@ const createPropertyMarkerIcon = (type: string) => {
     iconAnchor: L.point(17, 44),
     popupAnchor: L.point(0, -38),
   })
+}
+
+/**
+ * Caché de íconos por tipo: crear un L.divIcon nuevo por marcador en cada render
+ * forzaba a react-leaflet a llamar setIcon() sobre TODOS los marcadores en cada
+ * repintado (churn masivo con miles de propiedades). Con la instancia cacheada,
+ * la referencia del prop no cambia y los markers quedan quietos.
+ */
+const propertyIconCache = new Map<string, L.DivIcon>()
+const getPropertyMarkerIcon = (type: string): L.DivIcon => {
+  let cached = propertyIconCache.get(type)
+  if (!cached) {
+    cached = createPropertyMarkerIcon(type)
+    propertyIconCache.set(type, cached)
+  }
+  return cached
 }
 
 /**
@@ -228,6 +246,11 @@ function MapRadarEvents({
     click(e) {
       // Clic en modo radar activo O en modo configuración (para mover radar)
       if (isRadarModeActive || isRadarConfiguring) {
+        // Ignorar SOLO los clics que nacieron dentro de la UI flotante marcada
+        // con data-map-ui (paneles, buscador, botones): no deben mover el radar.
+        // Todo lo demás ES el mapa: coloca/mueve el radar con normalidad.
+        const target = e.originalEvent?.target as HTMLElement | null
+        if (target?.closest?.("[data-map-ui]")) return
         onMapClick(e.latlng.lat, e.latlng.lng)
       }
     }
@@ -304,7 +327,7 @@ function DesktopControls({
   return (
     <>
       {/* Panel Superior Izquierdo - [🏠] [FILTROS] [BUSCADOR] */}
-      <div className="absolute top-4 left-4 z-[1000] flex items-center gap-3">
+      <div data-map-ui className="absolute top-4 left-4 z-[1000] flex items-center gap-3">
         {/* Botón Inicio - Navega a /home */}
         <button
           onClick={onGoHome}
@@ -333,7 +356,7 @@ function DesktopControls({
       </div>
 
       {/* Panel Superior Derecho - [20] [📍] [📡] [🌎] */}
-      <div className="absolute top-4 right-4 z-[1000] flex items-center gap-3">
+      <div data-map-ui className="absolute top-4 right-4 z-[1000] flex items-center gap-3">
         {/* Badge de Conteo */}
         <div className="bg-white/95 backdrop-blur text-gray-700 border border-gray-200 py-2 px-4 rounded-xl text-sm font-semibold shadow-lg">
           {propertyCount} propiedades
@@ -401,7 +424,7 @@ function MobileHeader({
   propertyCount: number
 }) {
   return (
-    <div className="absolute top-0 left-0 right-0 z-[1000] bg-gradient-to-b from-black/50 to-transparent p-4">
+    <div data-map-ui className="absolute top-0 left-0 right-0 z-[1000] bg-gradient-to-b from-black/50 to-transparent p-4">
       <div className="flex items-center gap-3">
         {/* Badge de Conteo - Ahora en móvil arriba */}
         <div className="bg-white/95 backdrop-blur text-gray-700 border border-gray-200 py-2 px-4 rounded-xl text-sm font-semibold shadow-lg">
@@ -460,7 +483,7 @@ function MobileBottomPanel({
   }
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-[1000] rounded-t-3xl shadow-[0_-10px_25px_rgba(0,0,0,0.1)]">
+    <div data-map-ui className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-[1000] rounded-t-3xl shadow-[0_-10px_25px_rgba(0,0,0,0.1)]">
       {/* Grid de 6 columnas idénticas */}
       <div className="grid grid-cols-6 w-full items-center justify-items-center">
         {/* Botón Inicio - Navega a /home */}
@@ -656,7 +679,7 @@ function MapContent({
           <Marker
             key={property.id}
             position={[property.lat, property.lng]}
-            icon={createPropertyMarkerIcon(property.type)}
+            icon={getPropertyMarkerIcon(property.type)}
             eventHandlers={{
               click: () => {
                 setSelectedProperty(property)
@@ -686,12 +709,11 @@ function mapInmuebleToProperty(i: InmuebleDTO): Property {
   const tipoPorCategoria: Record<string, Property['type']> = {
     CASA: 'house',
     QUINTA: 'house',
-    DUPLEX: 'house',
     DEPARTAMENTO: 'apartment',
     PENTHOUSE: 'apartment',
-    MONOAMBIENTE: 'apartment',
-    CONDOMINIO: 'apartment',
     TERRENO: 'land',
+    LOCAL_COMERCIAL: 'commercial',
+    OFICINA: 'commercial',
   }
 
   return {
@@ -746,13 +768,16 @@ export function InteractiveMap() {
       operacionInicial = operacionParam.toUpperCase()
     }
     if (tipoParam && tipoParam !== 'todos' && tipoParam !== '__none__') {
+      // GALPON no existe en ProductCategoryEnum: los galpones se guardan como OTROS.
+      // "galpon" se mantiene por compatibilidad con links viejos guardados.
       const categoriaEnum = {
         casa: 'CASA',
         departamento: 'DEPARTAMENTO',
         terreno: 'TERRENO',
         local: 'LOCAL_COMERCIAL',
         oficina: 'OFICINA',
-        galpon: 'GALPON',
+        otros: 'OTROS',
+        galpon: 'OTROS',
       }[tipoParam]
       if (categoriaEnum) {
         categoriaInicial = categoriaEnum
@@ -968,7 +993,7 @@ export function InteractiveMap() {
     <div className="relative w-full h-screen overflow-hidden bg-[#0f172a]">
       {/* Overlay de carga progresiva */}
       {isLoading && (
-        <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-[#0f172a]/95 p-4 backdrop-blur-sm">
+        <div data-map-ui className="absolute inset-0 z-[2000] flex items-center justify-center bg-[#0f172a]/95 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-slate-700/50 bg-card p-6 shadow-2xl sm:p-8">
             <div className="mb-5 flex items-center gap-3">
               <div className="h-10 w-10 flex-shrink-0 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
@@ -1033,8 +1058,12 @@ export function InteractiveMap() {
             <RadarDragMarker
               position={radarCenter}
               onDrag={(lat, lng) => {
+                // En vivo solo mover el círculo (barato): el filtrado de
+                // propiedades es O(n) y a 60 eventos/seg congelaba el mapa
                 setRadarCenter([lat, lng])
-                // Actualizar resultados si el sidebar está abierto
+              }}
+              onDragEnd={(lat, lng) => {
+                // Recalcular resultados UNA vez al soltar (sidebar abierto)
                 if (isRightSidebarOpen) {
                   const tempResults = allProperties.filter((property) => {
                     const distance = L.latLng(property.lat, property.lng).distanceTo([lat, lng])
@@ -1076,7 +1105,12 @@ export function InteractiveMap() {
         isOpen={isRightSidebarOpen}
         onClose={handleRightSidebarClose}
         results={radarResults}
-        onReconfigureRadar={() => setIsRadarConfiguring(true)}
+        onReconfigureRadar={() => {
+          // El RadarSizeControl solo se muestra con el sidebar cerrado:
+          // cerrarlo aquí era el paso que faltaba para que aparezca el slider
+          setIsRightSidebarOpen(false)
+          setIsRadarConfiguring(true)
+        }}
       />
 
       {/* Modal de detalle de propiedad */}

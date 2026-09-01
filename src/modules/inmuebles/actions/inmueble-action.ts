@@ -6,6 +6,7 @@
 "use server"
 
 import { auth } from '@/shared/auth/nextauth'
+import { ROLES_CONFIG } from '@/config/roles'
 import { auditService, AuditAction } from '@/shared/security/audit-service'
 import { inmuebleService } from '../services/inmueble-service'
 import {
@@ -43,7 +44,11 @@ export async function listInmueblesAction(filters?: ListInmueblesInput) {
  */
 export async function listInmueblesPublicAction(page = 1, limit = 250) {
   try {
-    const result = await inmuebleService.list({ page, limit, geolocalizado: true })
+    // Saneamiento de parámetros (endpoint sin sesión): page entero >= 1,
+    // limit acotado a 500 para evitar DoS o errores de Prisma con skip inválido
+    const pagina = Math.max(1, Math.floor(Number(page) || 1))
+    const limite = Math.min(500, Math.max(1, Math.floor(Number(limit) || 250)))
+    const result = await inmuebleService.list({ page: pagina, limit: limite, geolocalizado: true })
     return {
       success: true as const,
       data: result.inmuebles,
@@ -79,6 +84,10 @@ export async function createInmuebleAction(input: CreateInmuebleInput) {
       return { success: false as const, error: 'No autenticado' }
     }
 
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'inmuebles.create')) {
+      return { success: false as const, error: 'No autorizado para crear inmuebles' }
+    }
+
     const validated = createInmuebleValidator.safeParse(input)
     if (!validated.success) {
       return { success: false as const, error: validated.error.issues[0].message }
@@ -107,6 +116,10 @@ export async function updateInmuebleAction(id: string, input: UpdateInmuebleInpu
       return { success: false as const, error: 'No autenticado' }
     }
 
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'inmuebles.update')) {
+      return { success: false as const, error: 'No autorizado para actualizar inmuebles' }
+    }
+
     const validated = updateInmuebleValidator.safeParse(input)
     if (!validated.success) {
       return { success: false as const, error: validated.error.issues[0].message }
@@ -133,6 +146,11 @@ export async function deleteInmuebleAction(id: string) {
     const session = await auth()
     if (!session?.user) {
       return { success: false as const, error: 'No autenticado' }
+    }
+
+    // Matriz RBAC: inmuebles.delete es exclusivo de ADMIN
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'inmuebles.delete')) {
+      return { success: false as const, error: 'No autorizado. Solo administradores pueden eliminar inmuebles' }
     }
 
     await inmuebleService.delete(id)

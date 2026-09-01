@@ -30,6 +30,10 @@ export async function crearAvaluoAction(input: unknown) {
       return { success: false as const, error: 'No autenticado' }
     }
 
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'avaluos.create')) {
+      return { success: false as const, error: 'No autorizado para crear avalúos' }
+    }
+
     const validated = crearAvaluoValidator.safeParse(input)
     if (!validated.success) {
       return { success: false as const, error: validated.error.issues[0].message }
@@ -154,6 +158,10 @@ export async function actualizarAvaluoAction(id: string, input: unknown) {
       return { success: false as const, error: 'No autenticado' }
     }
 
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'avaluos.update')) {
+      return { success: false as const, error: 'No autorizado para actualizar avalúos' }
+    }
+
     const validated = actualizarAvaluoValidator.safeParse(input)
     if (!validated.success) {
       return { success: false as const, error: validated.error.issues[0].message }
@@ -181,6 +189,10 @@ export async function agregarComparableAction(avaluoId: string, input: unknown) 
     const session = await auth()
     if (!session?.user) {
       return { success: false as const, error: 'No autenticado' }
+    }
+
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'avaluos.update')) {
+      return { success: false as const, error: 'No autorizado para modificar este avalúo' }
     }
 
     const validated = comparableValidator.safeParse(input)
@@ -216,6 +228,10 @@ export async function actualizarComparableAction(
       return { success: false as const, error: 'No autenticado' }
     }
 
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'avaluos.update')) {
+      return { success: false as const, error: 'No autorizado para modificar este avalúo' }
+    }
+
     const validated = comparableValidator.safeParse(input)
     if (!validated.success) {
       return { success: false as const, error: validated.error.issues[0].message }
@@ -248,6 +264,10 @@ export async function eliminarComparableAction(
       return { success: false as const, error: 'No autenticado' }
     }
 
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'avaluos.update')) {
+      return { success: false as const, error: 'No autorizado para modificar este avalúo' }
+    }
+
     await avaluoService.eliminarComparable(avaluoId, comparableId, tipo ?? 'VENTA')
     const detalle = await avaluoService.getById(avaluoId)
     await auditService.log({
@@ -270,6 +290,11 @@ export async function eliminarAvaluoAction(id: string) {
     const session = await auth()
     if (!session?.user) {
       return { success: false as const, error: 'No autenticado' }
+    }
+
+    // Matriz RBAC: avaluos.delete es exclusivo de ADMIN
+    if (!ROLES_CONFIG.tienePermiso(session.user.role ?? '', 'avaluos.delete')) {
+      return { success: false as const, error: 'No autorizado. Solo administradores pueden eliminar avalúos' }
     }
 
     await avaluoService.eliminar(id)
@@ -349,7 +374,10 @@ export async function buscarComparablesCercanosAction(input: unknown) {
           precioM2,
         }
       })
-      .filter((r) => r.distanciaMetros <= radioMetros)
+      // Solo comparables con precio/m² calculable y positivo: un comparable sin
+      // superficie (precioM2 null) o con precio 0 contamina el promedio que
+      // determina el valor unitario del terreno
+      .filter((r) => r.precioM2 != null && r.precioM2 > 0 && r.distanciaMetros <= radioMetros)
       .sort((a, b) => a.distanciaMetros - b.distanciaMetros)
 
     return { success: true as const, data: resultados }

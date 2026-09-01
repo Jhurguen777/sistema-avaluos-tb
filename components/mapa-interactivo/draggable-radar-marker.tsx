@@ -19,12 +19,15 @@ import L from "leaflet"
 export interface RadarDragMarkerProps {
   position: L.LatLngExpression
   onDrag: (lat: number, lng: number) => void
+  /** Se dispara UNA vez al soltar el marcador: para recálculos costosos */
+  onDragEnd?: (lat: number, lng: number) => void
   isRadarConfiguring: boolean
 }
 
 export function RadarDragMarker({
   position,
   onDrag,
+  onDragEnd,
   isRadarConfiguring,
 }: RadarDragMarkerProps) {
   const map = useMap()
@@ -34,12 +37,16 @@ export function RadarDragMarker({
   // Valores más recientes accesibles desde el efecto de creación (sin dispararlo).
   const positionRef = useRef(position)
   const onDragRef = useRef(onDrag)
+  const onDragEndRef = useRef(onDragEnd)
   useEffect(() => {
     positionRef.current = position
   }, [position])
   useEffect(() => {
     onDragRef.current = onDrag
   }, [onDrag])
+  useEffect(() => {
+    onDragEndRef.current = onDragEnd
+  }, [onDragEnd])
 
   // Crear el marcador una sola vez (o cuando cambia el modo configuración).
   useEffect(() => {
@@ -110,8 +117,10 @@ export function RadarDragMarker({
       const { lat, lng } = (e as L.LeafletMouseEvent).latlng
       onDragRef.current(lat, lng)
     })
-    marker.on("dragend", () => {
+    marker.on("dragend", (e: L.LeafletEvent) => {
       draggingRef.current = false
+      const { lat, lng } = (e as L.LeafletMouseEvent).latlng
+      onDragEndRef.current?.(lat, lng)
     })
 
     markerRef.current = marker

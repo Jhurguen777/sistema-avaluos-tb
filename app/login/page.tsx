@@ -208,15 +208,15 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center mt-6 space-y-2">
           <p className="text-sm text-muted-foreground/80">
-            Powered by{" "}
-            <span className="font-semibold text-primary">Next.js</span>
+            sistema{" "}
+            <span className="font-semibold text-primary">rapido</span>
             {" "}+{" "}
-            <span className="font-semibold text-secondary">Prisma</span>
+            <span className="font-semibold text-secondary">eficaz</span>
             {" "}+{" "}
-            <span className="font-semibold text-accent">NextAuth</span>
+            <span className="font-semibold text-accent">seguro</span>
           </p>
           <p className="text-xs text-muted-foreground/60">
-            ACM Analytics 365Soft © 2026   Sistema público de propiedades
+            ACM 365Soft © 2026   Sistema público de propiedades
           </p>
         </div>
       </div>

@@ -23,7 +23,9 @@ export function FiltrosInmuebles({ className }: FiltrosInmueblesProps) {
     { value: "terreno", label: "Terreno" },
     { value: "local", label: "Local Comercial" },
     { value: "oficina", label: "Oficina" },
-    { value: "galpon", label: "Galpón" },
+    // GALPON no existe en ProductCategoryEnum (ver seed-categorias): los
+    // galpones se guardan como OTROS, así que se ofrecen bajo esa categoría
+    { value: "otros", label: "Otros" },
   ]
 
   const tiposOperacion = [

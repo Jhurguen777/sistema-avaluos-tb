@@ -307,9 +307,17 @@ export default function AvaluoDetallePage() {
       if (lat != null && lng != null) {
         // Esperar un render cycle para que React monte los componentes offscreen
         await new Promise((r) => setTimeout(r, 400))
-        // Tiempo para que Leaflet monte + Esri cargue tiles satelitales
-        await new Promise((r) => setTimeout(r, 2500))
+        // Esperar a que los tiles satelitales (Esri) de los 3 mapas offscreen
+        // terminen de cargar DE VERDAD (sustituye el timeout fijo de 2500 ms:
+        // en conexiones lentas los mapas salían grises en el PDF)
         const w = window as unknown as Record<string, HTMLElement | undefined>
+        await Promise.all([
+          esperarTilesCargados(w.__mapaUbicacionRef, 10000),
+          esperarTilesCargados(w.__mapaRadarRef, 10000),
+          esperarTilesCargados(w.__mapaEquipamientosRef, 10000),
+        ])
+        // Margen breve para el pintado final de marcadores/anillos
+        await new Promise((r) => setTimeout(r, 300))
         try {
           if (w.__mapaUbicacionRef) mapaUbicacion = await toPng(w.__mapaUbicacionRef, { cacheBust: true, pixelRatio: 2 })
         } catch (e) {
@@ -826,6 +834,30 @@ async function cargarImagenDataUrl(url: string): Promise<string> {
 }
 
 /**
+ * Espera a que todos los tiles de un mapa Leaflet (contenedor DOM) terminen de
+ * cargar (img.complete + naturalWidth > 0). Sondea cada 150 ms hasta un máximo
+ * de `timeoutMs`: si se agota el tiempo, continúa con lo que haya (mejor un mapa
+ * parcial que bloquear la generación del PDF).
+ */
+async function esperarTilesCargados(
+  contenedor: HTMLElement | undefined,
+  timeoutMs: number,
+): Promise<void> {
+  if (!contenedor) return
+  const inicio = Date.now()
+  while (Date.now() - inicio < timeoutMs) {
+    const tiles = Array.from(contenedor.querySelectorAll("img.leaflet-tile"))
+    const cargadas = tiles.filter(
+      (t) => (t as HTMLImageElement).complete && (t as HTMLImageElement).naturalWidth > 0,
+    )
+    // Listo cuando hay tiles y todos terminaron (los errorneos también hacen complete)
+    if (tiles.length > 0 && cargadas.length === tiles.length) return
+    await new Promise((r) => setTimeout(r, 150))
+  }
+  console.warn("esperarTilesCargados: timeout esperando tiles del mapa para el PDF")
+}
+
+/**
  * Carga una lista de URLs de fotos y devuelve dataURLs JPEG recortados a
  * cuadrado (cover) con el tamaño indicado. Así el PDF puede colocarlos en
  * una grilla uniforme sin distorsión de aspecto.
@@ -837,28 +869,26 @@ async function cargarFotosCuadradas(
   const resultado: { dataUrl: string }[] = []
   for (const url of urls) {
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const img = new window.Image()
-        img.crossOrigin = "anonymous"
-        img.onload = () => {
-          const canvas = document.createElement("canvas")
-          canvas.width = size
-          canvas.height = size
-          const ctx = canvas.getContext("2d")
-          if (!ctx) return reject(new Error("Canvas no disponible"))
-          // Cover: escalar y centrar recortando lo que sobre
-          const escala = Math.max(size / img.width, size / img.height)
-          const w = img.width * escala
-          const h = img.height * escala
-          const dx = (size - w) / 2
-          const dy = (size - h) / 2
-          ctx.drawImage(img, dx, dy, w, h)
-          resolve(canvas.toDataURL("image/jpeg", 0.82))
-        }
-        img.onerror = () => reject(new Error(`No se pudo cargar ${url}`))
-        img.src = url
-      })
-      resultado.push({ dataUrl })
+      // fetch (a diferencia de <img crossOrigin="anonymous">) envía cookies:
+      // requerido para las URLs privadas /api/archivos/[id]
+      const res = await fetch(url, { credentials: "same-origin" })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const bitmap = await createImageBitmap(blob)
+      const canvas = document.createElement("canvas")
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("Canvas no disponible")
+      // Cover: escalar y centrar recortando lo que sobre
+      const escala = Math.max(size / bitmap.width, size / bitmap.height)
+      const w = bitmap.width * escala
+      const h = bitmap.height * escala
+      const dx = (size - w) / 2
+      const dy = (size - h) / 2
+      ctx.drawImage(bitmap, dx, dy, w, h)
+      bitmap.close()
+      resultado.push({ dataUrl: canvas.toDataURL("image/jpeg", 0.82) })
     } catch (e) {
       console.error("Error cargando foto:", url, e)
     }

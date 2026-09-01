@@ -91,21 +91,43 @@ export const userRepository = {
 
   /**
    * Desactivar usuario (soft delete)
+   * select sin password: nunca devolver el hash al cliente
    */
   async deactivate(id: string): Promise<any> {
     return await prisma.user.update({
       where: { id },
-      data: { isActive: false }
+      data: { isActive: false },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        lastLoginAt: true,
+        updatedAt: true
+      }
     })
   },
 
   /**
    * Reactivar usuario
+   * select sin password: nunca devolver el hash al cliente
    */
   async reactivate(id: string): Promise<any> {
     return await prisma.user.update({
       where: { id },
-      data: { isActive: true }
+      data: { isActive: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        lastLoginAt: true,
+        updatedAt: true
+      }
     })
   },
 

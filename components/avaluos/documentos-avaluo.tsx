@@ -106,6 +106,7 @@ export function DocumentosAvaluo({ avaluoId }: { avaluoId: string }) {
               ref={fileRef}
               id="file-doc"
               type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
               className="h-10 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary/90 text-slate-300 text-sm w-full"
             />
           </div>
@@ -142,6 +143,11 @@ export function DocumentosAvaluo({ avaluoId }: { avaluoId: string }) {
                       {tipoLabel} · {(doc.size / 1024).toFixed(0)} KB
                     </p>
                   </div>
+                  {doc.esFoto && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                      Foto del inmueble
+                    </span>
+                  )}
                   <a
                     href={doc.url}
                     download

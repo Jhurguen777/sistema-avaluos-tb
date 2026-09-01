@@ -14,14 +14,7 @@ export const INMUEBLE_CONFIG = {
     TERRENO: 'Terreno',
     LOCAL_COMERCIAL: 'Local Comercial',
     OFICINA: 'Oficina',
-    GALPON: 'Galpón',
     QUINTA: 'Quinta',
-    MONOAMBIENTE: 'Monoambiente',
-    DUPLEX: 'Dúplex',
-    CONDOMINIO: 'Condominio',
-    EDIFICIO: 'Edificio',
-    COCHERA: 'Cochera',
-    HABITACION: 'Habitación',
     OTROS: 'Otros'
   } as const,
 
@@ -43,7 +36,6 @@ export const INMUEBLE_CONFIG = {
     DEPARTAMENTO: ['superficieConstruida', 'ambientes', 'banos', 'piso'],
     LOCAL_COMERCIAL: ['superficieConstruida', 'frente'],
     OFICINA: ['superficieConstruida', 'ambientes'],
-    GALPON: ['superficieConstruida', 'altura'],
     PENTHOUSE: ['superficieConstruida', 'ambientes', 'banos']
   } as const
 } as const

@@ -608,6 +608,16 @@ export const avaluoService = {
   async agregarComparable(avaluoId: string, input: ComparableInput) {
     const config = await loadConfigAvaluo()
     return avaluoRepository.transaction(async (tx) => {
+      // Un avalúo aprobado es inmutable (el PDF aprobado debe corresponder a la BD)
+      const avaluo = await tx.avaluo.findUnique({
+        where: { id: avaluoId },
+        select: { estado: true },
+      })
+      if (!avaluo) throw new Error('Avalúo no encontrado')
+      if (avaluo.estado === 'APROBADO') {
+        throw new Error('No se puede modificar un avalúo aprobado')
+      }
+
       const data = {
         avaluoId,
         direccion: input.direccion,
@@ -659,12 +669,26 @@ export const avaluoService = {
         factorServicios: input.factorServicios ?? null,
       }
 
-      // Verificar en qué tabla existe actualmente el comparable
-      const enVenta = await tx.comparableVenta.findUnique({ where: { id: comparableId } }).catch(() => null)
-      const enAlquiler = await tx.comparableAlquiler.findUnique({ where: { id: comparableId } }).catch(() => null)
+      // Verificar en qué tabla existe actualmente el comparable,
+      // EXIGIENDO que pertenezca a este avalúo (evita IDOR cross-avalúo)
+      const enVenta = await tx.comparableVenta
+        .findFirst({ where: { id: comparableId, avaluoId } })
+        .catch(() => null)
+      const enAlquiler = await tx.comparableAlquiler
+        .findFirst({ where: { id: comparableId, avaluoId } })
+        .catch(() => null)
 
       const tipoActual = enVenta ? 'VENTA' : enAlquiler ? 'ALQUILER' : null
-      if (!tipoActual) throw new Error('Comparable no encontrado')
+      if (!tipoActual) throw new Error('Comparable no encontrado en este avalúo')
+
+      // Un avalúo aprobado es inmutable
+      const avaluo = await tx.avaluo.findUnique({
+        where: { id: avaluoId },
+        select: { estado: true },
+      })
+      if (avaluo?.estado === 'APROBADO') {
+        throw new Error('No se puede modificar un avalúo aprobado')
+      }
 
       // Si el tipo cambia, borrar de la tabla vieja y crear en la nueva
       if (input.tipo !== tipoActual) {
@@ -696,6 +720,29 @@ export const avaluoService = {
   async eliminarComparable(avaluoId: string, comparableId: string, tipo: 'VENTA' | 'ALQUILER') {
     const config = await loadConfigAvaluo()
     return avaluoRepository.transaction(async (tx) => {
+      // Un avalúo aprobado es inmutable
+      const avaluo = await tx.avaluo.findUnique({
+        where: { id: avaluoId },
+        select: { estado: true },
+      })
+      if (!avaluo) throw new Error('Avalúo no encontrado')
+      if (avaluo.estado === 'APROBADO') {
+        throw new Error('No se puede modificar un avalúo aprobado')
+      }
+
+      // Verificar pertenencia del comparable a ESTE avalúo antes de borrar
+      const existe =
+        tipo === 'ALQUILER'
+          ? await tx.comparableAlquiler.findFirst({
+              where: { id: comparableId, avaluoId },
+              select: { id: true },
+            })
+          : await tx.comparableVenta.findFirst({
+              where: { id: comparableId, avaluoId },
+              select: { id: true },
+            })
+      if (!existe) throw new Error('Comparable no encontrado en este avalúo')
+
       if (tipo === 'ALQUILER') {
         await tx.comparableAlquiler.delete({ where: { id: comparableId } })
       } else {

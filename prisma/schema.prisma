@@ -97,14 +97,7 @@ enum ProductCategoryEnum {
   TERRENO
   LOCAL_COMERCIAL
   OFICINA
-  GALPON
   QUINTA
-  MONOAMBIENTE
-  DUPLEX
-  CONDOMINIO
-  EDIFICIO
-  COCHERA
-  HABITACION
   OTROS
 }
 
@@ -187,6 +180,9 @@ model ProductImage {
   mimeType      String
   size          Int
   url           String
+  // Bytes del archivo viviendo en la BD (privados: se sirven vía /api/archivos/[id]).
+  // Nullable = migración aditiva; las filas viejas con solo url siguen válidas.
+  data          Bytes?
   orden         Int      @default(0)
   descripcion   String?
   isPrincipal   Boolean  @default(false)
@@ -516,6 +512,9 @@ model Documento {
   mimeType        String
   size            Int
   url             String
+  // Bytes del archivo viviendo en la BD (privados: se sirven vía /api/archivos/[id]).
+  // Nullable = migración aditiva; las filas viejas con solo url siguen válidas.
+  data            Bytes?
   descripcion     String?         @db.Text
   createdAt       DateTime        @default(now())
 

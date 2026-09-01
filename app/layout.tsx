@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ACM Analytics 365Soft",
-  description: "ACM Analytics 365Soft",
+  title: "Avaluos 365Soft",
+  description: "Avaluos 365Soft",
 };
 
 export default function RootLayout({

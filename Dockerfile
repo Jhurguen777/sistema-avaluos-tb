@@ -54,7 +54,8 @@ ENV HOSTNAME=0.0.0.0
 # netcat-openbsd: para esperar a la BD en el entrypoint
 # openssl: requerido por el motor de schema de Prisma (db execute / db push) en Alpine;
 #          sin esto, el entrypoint cae en bucle con "Error in Schema engine".
-RUN apk add --no-cache netcat-openbsd openssl
+# python3 + py3-requests: para ejecutar los scrapers (c21 / remax) desde la app
+RUN apk add --no-cache netcat-openbsd openssl python3 py3-requests
 
 # Usuario no-root
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
@@ -73,6 +74,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_module
 # bcryptjs: usado por el seeder del admin al hashear la contraseña
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
+# --- Scrapers de Python (c21 / remax) + directorio de salida ---
+COPY --from=builder --chown=nextjs:nodejs /app/python ./python
+
 # --- Entrypoint ---
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
@@ -80,6 +84,10 @@ RUN chmod +x docker-entrypoint.sh
 # Volumen para documentos subidos por los usuarios (persiste entre restarts)
 RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 VOLUME ["/app/public/uploads"]
+
+# Volumen para los JSONs generados por los scrapers (persiste entre restarts)
+RUN mkdir -p /app/scraper-output && chown -R nextjs:nodejs /app/scraper-output
+VOLUME ["/app/scraper-output"]
 
 # Marcador de inicializacion (volumen avaluos_initflag en el compose de prod).
 # Debe existir y ser escribible por nextjs ANTES del 'USER nextjs' para que,

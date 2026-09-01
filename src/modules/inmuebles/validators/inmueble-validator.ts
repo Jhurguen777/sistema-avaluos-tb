@@ -8,8 +8,7 @@ import { z } from 'zod'
 /** Valores de enum permitidos (alineados con Prisma) */
 const CATEGORIAS = [
   'CASA', 'DEPARTAMENTO', 'PENTHOUSE', 'TERRENO', 'LOCAL_COMERCIAL',
-  'OFICINA', 'GALPON', 'QUINTA', 'MONOAMBIENTE', 'DUPLEX',
-  'CONDOMINIO', 'EDIFICIO', 'COCHERA', 'HABITACION', 'OTROS',
+  'OFICINA', 'QUINTA', 'OTROS',
 ] as const
 
 const OPERACIONES = ['VENTA', 'ALQUILER', 'ANTICRETICO'] as const

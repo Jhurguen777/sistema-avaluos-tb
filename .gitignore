@@ -48,3 +48,6 @@ Thumbs.db
 
 # MinIO (archivos locales si los hubiera)
 minio_data
+
+# Salida de los scrapers (JSONs generados en runtime)
+/scraper-output

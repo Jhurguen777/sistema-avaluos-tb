@@ -50,6 +50,8 @@ services:
     volumes:
       # Documentos subidos por los usuarios (persisten entre restarts)
       - avaluos_uploads:/app/public/uploads
+      # JSONs generados por los scrapers (persisten entre restarts)
+      - avaluos_scraper:/app/scraper-output
       # Marcador "ya inicializado": evita repetir schema-sync + seeds en cada restart
       - avaluos_initflag:/initflag
     networks:
@@ -61,6 +63,7 @@ services:
 volumes:
   avaluos_pgdata:
   avaluos_uploads:
+  avaluos_scraper:
   avaluos_initflag:
 
 networks:

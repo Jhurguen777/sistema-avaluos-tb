@@ -24,9 +24,10 @@ import {
   Home,
   Building,
   Store,
-  Warehouse,
   Building2,
   MapPin,
+  Crown,
+  TreePine,
   Loader2,
   Check,
   FileText,
@@ -47,17 +48,18 @@ import type { ComparableCercanoDTO, MetodoCalculoTerreno } from "@/modules/avalu
 import type { CategoriaConstructiva } from "@/constants/categorias-constructivas"
 import type { EstadoConservacion } from "@/constants/estados-conservacion"
 
-type PropertyCategory = "CASA" | "DEPARTAMENTO" | "TERRENO" | "LOCAL_COMERCIAL" | "OFICINA" | "GALPON" | "OTROS"
+type PropertyCategory = "CASA" | "DEPARTAMENTO" | "PENTHOUSE" | "TERRENO" | "LOCAL_COMERCIAL" | "OFICINA" | "QUINTA" | "OTROS"
 type OperationType = "VENTA" | "ALQUILER" | "ANTICRETICO"
 type AvaluoTipo = "COMERCIAL" | "ALQUILER" | "VENTA_RAPIDA" | "CAPITAL_COMERCIAL"
 
 const categories: { value: PropertyCategory; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
   { value: "CASA", label: "Casa", icon: Home, description: "Vivienda unifamiliar con terreno" },
   { value: "DEPARTAMENTO", label: "Departamento", icon: Building2, description: "Unidad en edificio multifamiliar" },
+  { value: "PENTHOUSE", label: "Penthouse", icon: Crown, description: "Apartamento de lujo en última planta" },
   { value: "TERRENO", label: "Terreno", icon: MapPin, description: "Lote sin construcción" },
   { value: "LOCAL_COMERCIAL", label: "Local Comercial", icon: Store, description: "Espacio para actividades comerciales" },
   { value: "OFICINA", label: "Oficina", icon: Building, description: "Espacio para actividades administrativas" },
-  { value: "GALPON", label: "Galpón", icon: Warehouse, description: "Espacio industrial o de almacenamiento" },
+  { value: "QUINTA", label: "Quinta", icon: TreePine, description: "Propiedad de esparcimiento con terreno" },
 ]
 
 const operations: { value: OperationType; label: string; description: string; color: string }[] = [
@@ -242,22 +244,29 @@ export default function CrearAvaluoPage() {
     return valorUnitarioConstruccion * sup
   }, [tieneConstruccion, valorUnitarioConstruccion, construccion.superficieM2])
 
+  /** Comparables con precio/m² válido (> 0): los únicos que alimentan el promedio */
+  const comparablesValidos = useMemo(
+    () => comparablesSel.filter((c) => (c.precioM2 ?? 0) > 0),
+    [comparablesSel],
+  )
+
   const promedioSimpleComparables = useMemo(() => {
-    if (comparablesSel.length === 0) return 0
-    const suma = comparablesSel.reduce((acc, c) => acc + (c.precioM2 ?? 0), 0)
-    return suma / comparablesSel.length
-  }, [comparablesSel])
+    if (comparablesValidos.length === 0) return 0
+    const suma = comparablesValidos.reduce((acc, c) => acc + (c.precioM2 ?? 0), 0)
+    return suma / comparablesValidos.length
+  }, [comparablesValidos])
 
   const valorUnitarioTerreno = useMemo(() => {
-    if (comparablesSel.length === 0) {
-      // Sin comparables: usar valor manual
+    if (comparablesValidos.length === 0) {
+      // Sin comparables válidos: usar valor manual (un comparable sin precio/m²
+      // válido NO debe arrastrar el promedio a 0)
       const v = parseFloat(terreno.valorUnitarioManual) || 0
       return v
     }
-    // Con comparables: método elegido × factor sujeto
+    // Con comparables válidos: método elegido × factor sujeto
     const prom = promedioSimpleComparables
     return prom * factorTotal
-  }, [comparablesSel, promedioSimpleComparables, factorTotal, terreno.valorUnitarioManual])
+  }, [comparablesValidos, promedioSimpleComparables, factorTotal, terreno.valorUnitarioManual])
 
   const valorTerreno = useMemo(() => {
     const sup = parseFloat(terreno.superficieUtil) || 0
@@ -405,36 +414,36 @@ export default function CrearAvaluoPage() {
       setCreatedCodigo(detalle.codigo)
       setCreatedId(detalle.id)
 
-      // Subir documentos del wizard (si los hay) en segundo plano.
-      // Usamos try/catch por archivo para que un fallo no aborte los demás.
+      // Subir TODOS los documentos del wizard en una sola tanda (una llamada).
       if (documentos.length > 0) {
         try {
           const { subirDocumentoAction } = await import("@/modules/documentos/actions")
-          let subidos = 0
-          let fallidos = 0
+          const fd = new FormData()
+          fd.append("avaluoId", detalle.id)
           for (const d of documentos) {
-            try {
-              const fd = new FormData()
-              fd.append("avaluoId", detalle.id)
-              fd.append("tipo", d.tipo)
-              fd.append("file", d.file)
-              if (d.descripcion) fd.append("descripcion", d.descripcion)
-              const resDoc = await subirDocumentoAction(fd)
-              if (resDoc.success) subidos++
-              else fallidos++
-            } catch (oneErr) {
-              console.error("Error subiendo un documento del wizard:", oneErr)
-              fallidos++
-            }
+            fd.append("file", d.file)
+            fd.append("tipo", d.tipo)
+            fd.append("descripcion", d.descripcion ?? "")
           }
-          if (fallidos > 0) {
+          const resDoc = await subirDocumentoAction(fd)
+          if (resDoc.success) {
+            const fallidos = resDoc.data?.fallidos ?? []
+            if (fallidos.length > 0) {
+              const nombres = fallidos.map((f) => `${f.nombre} (${f.error})`).join(" · ")
+              toast.warning(
+                `Documentos: ${documentos.length - fallidos.length} subidos, ${fallidos.length} fallidos. Podés reintentarlos desde el detalle. Fallidos: ${nombres}`,
+              )
+            }
+          } else {
             toast.warning(
-              `Documentos: ${subidos} subidos, ${fallidos} fallidos. Podés reintentar desde el detalle.`,
+              "Avalúo creado, pero los documentos no pudieron subirse. Podés subirlos desde el detalle.",
             )
           }
         } catch (docErr) {
-          console.error("Error cargando módulo de documentos:", docErr)
-          toast.warning("Avalúo creado, pero los documentos no pudieron subirse. Podés subirlos desde el detalle.")
+          console.error("Error subiendo documentos del wizard:", docErr)
+          toast.warning(
+            "Avalúo creado, pero los documentos no pudieron subirse. Podés subirlos desde el detalle.",
+          )
         }
       }
 

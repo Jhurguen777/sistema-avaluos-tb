@@ -21,7 +21,10 @@ import {
   List,
   History,
   Table2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  FileJson,
+  Database,
+  Bug,
 } from "lucide-react"
 import { useState } from "react"
 
@@ -121,6 +124,28 @@ const allMenuItems = [
     description: "Descuentos, alquiler y homologación",
     modulo: "configuracion",
     roles: ["ADMIN"],
+  },
+  {
+    id: "datos",
+    title: "Datos",
+    icon: Database,
+    description: "Extracción e inserción de datos",
+    modulo: "configuracion",
+    roles: ["ADMIN"],
+    subItems: [
+      {
+        title: "Scraper",
+        href: "/dashboard/datos/scraper",
+        icon: Bug,
+        description: "Extraer propiedades de C21 / RE/MAX"
+      },
+      {
+        title: "Importación",
+        href: "/dashboard/datos/importar",
+        icon: FileJson,
+        description: "Importar JSONs al catálogo"
+      }
+    ]
   },
   {
     id: "auditoria",

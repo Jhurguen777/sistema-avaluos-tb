@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   // "Invalid Server Actions request" cuando el origen no es localhost.
   // Si cambia tu IP de red, actualiza esta entrada.
   allowedDevOrigins: ["http://192.168.100.11:3000"],
+  // Las Server Actions tienen un límite de cuerpo de 1 MB por defecto,
+  // insuficiente para importar archivos JSON grandes de inmuebles.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
 };
 
 export default nextConfig;

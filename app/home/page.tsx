@@ -81,7 +81,7 @@ export default async function HomePage() {
                   {/* Logo */}
                   <Image
                     src="/recurso2analityc2.png"
-                    alt="Alfa Analitycs"
+                    alt="Avaluos 365soft"
                     width={40}
                     height={40}
                     className="relative w-10 h-10 object-contain"
@@ -92,7 +92,7 @@ export default async function HomePage() {
               {/* Nombre de la app */}
               <div className="hidden sm:block">
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
-                  Alfa Analitycs
+                  Avaluos 365soft
                 </h1>
                 <p className="text-xs text-slate-400">Sistema de gestionamiento de Avalúos</p>
               </div>
@@ -225,7 +225,7 @@ export default async function HomePage() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Alfa Analitycs</h3>
+                  <h3 className="text-lg font-bold text-white">Avaluos 365soft</h3>
                   <p className="text-xs text-slate-400">Avalúos Pro</p>
                 </div>
               </div>
@@ -243,7 +243,7 @@ export default async function HomePage() {
                   <Mail className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[11px] text-slate-400">Email</p>
-                    <p className="text-sm text-white">contacto@alfanalitycs.bo</p>
+                    <p className="text-sm text-white">contacto@avaluos365soft.bo</p>
                   </div>
                 </div>
                 {/* Teléfono */}
@@ -280,7 +280,7 @@ export default async function HomePage() {
           <div className="mt-8 pt-6 border-t border-slate-800">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-sm text-slate-500">
-                © 2026 ACM Analytics 365Soft. Todos los derechos reservados.
+                © 2026 ACM 365Soft. Todos los derechos reservados.
               </p>
               <p className="text-sm text-slate-500">
                 Hecho por 365soft — Bolivia
